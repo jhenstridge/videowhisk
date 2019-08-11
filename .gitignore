@@ -1,0 +1,6 @@
+*~
+__pycache__
+/.eggs
+/asyncio_glib
+/asyncio_glib.egg-info
+/videowhisk.egg-info
