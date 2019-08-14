@@ -1,0 +1,3 @@
+PyGObject
+asyncio-glib
+http-parser

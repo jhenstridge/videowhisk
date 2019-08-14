@@ -13,6 +13,7 @@ setup(
     install_requires=[
         "PyGObject",
         "asyncio-glib",
+        "http-parser"
     ],
     test_suite="tests",
 )
