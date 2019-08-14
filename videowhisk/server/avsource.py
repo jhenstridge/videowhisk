@@ -1,6 +1,5 @@
 import asyncio
 import socket
-import threading
 
 from gi.repository import GLib, Gst
 
@@ -10,7 +9,8 @@ class AVSourceServer:
 
     def __init__(self, bus, address, loop):
         self._loop = loop
-        self._bus = messagebus
+        self._closed = False
+        self._bus = bus
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setblocking(False)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
@@ -22,8 +22,16 @@ class AVSourceServer:
         self._run_task = self._loop.create_task(self.run())
 
     async def close(self):
+        if self._closed:
+            return
+        self._closed = True
         self._run_task.cancel()
         self._sock.close()
+        for conn in list(self._connections.values()):
+            await conn.close()
+
+    def local_addr(self):
+        return self._sock.getsockname()
 
     async def run(self):
         counter = 0
@@ -36,19 +44,35 @@ class AVSourceServer:
             conn.start()
             counter += 1
 
+    def _connection_closed(self, conn):
+        del self._connections[conn.name]
+
 
 class AVSourceConnection:
     def __init__(self, server, name, sock, address):
-        self.server = server
+        self._server = server
+        self._loop = server._loop
+        self._closed = False
         self.name = name
         self._sock = sock
         self._address = address
+        self.audio_sources = []
+        self.video_sources = []
         self.make_pipeline()
 
-    def close(self):
-        print("closing")
+    async def close(self):
+        if self._closed:
+            return
+        self._closed = True
         self.destroy_pipeline()
         self._sock.close()
+        self._server._connection_closed(self)
+        for channel in self.audio_sources:
+            await self._server._bus.post(messagebus.AudioSourceRemoved(
+                channel, self._address))
+        for channel in self.video_sources:
+            await self._server._bus.post(messagebus.VideoSourceRemoved(
+                channel, self._address))
 
     def make_pipeline(self):
         self._pipeline = Gst.Pipeline(self.name)
@@ -82,11 +106,13 @@ class AVSourceConnection:
 
     def on_bus_message(self, bus, message):
         if message.type == Gst.MessageType.EOS:
-            self.close()
+            self._loop.call_soon_threadsafe(
+                self._loop.create_task, self.close())
         elif message.type == Gst.MessageType.ERROR:
             (error, debug) = message.parse_error()
             print("Bus error:", error, debug)
-            self.close()
+            self._loop.call_soon_threadsafe(
+                self._loop.create_task, self.close())
         else:
             # ignore other messages
             pass
@@ -94,7 +120,7 @@ class AVSourceConnection:
 
     def on_demux_pad_added(self, demux, src_pad):
         caps = src_pad.query_caps(None)
-        if caps.can_intersect(self.server.expected_audio_caps):
+        if caps.can_intersect(self._server.expected_audio_caps):
             queue = Gst.ElementFactory.make("queue", "aqueue")
             sink = Gst.ElementFactory.make("interaudiosink", "asink")
             sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
@@ -103,9 +129,10 @@ class AVSourceConnection:
             queue.link(sink)
             queue.sync_state_with_parent()
             sink.sync_state_with_parent()
-            self.server._loop.call_soon_threadsafe(
-                self.source_added, 'audio', sink.props.channel)
-        elif caps.can_intersect(self.server.expected_video_caps):
+            self._loop.call_soon_threadsafe(
+                self._loop.create_task,
+                self.audio_source_added(sink.props.channel))
+        elif caps.can_intersect(self._server.expected_video_caps):
             queue = Gst.ElementFactory.make("queue", "vqueue")
             sink = Gst.ElementFactory.make("intervideosink", "vsink")
             sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
@@ -114,12 +141,20 @@ class AVSourceConnection:
             queue.link(sink)
             queue.sync_state_with_parent()
             sink.sync_state_with_parent()
-            self.server._loop.call_soon_threadsafe(
-                self.source_added, 'video', sink.props.channel)
+            self._loop.call_soon_threadsafe(
+                self._loop.create_task,
+                self.video_source_added(sink.props.channel))
         else:
             # By not connecting to the pad, we'll trigger a bus error
             # that will close the connection.
             print("Got unknown pad with caps {}".format(caps.to_string()))
 
-    def source_added(self, source_type, channel):
-        print("Added source of type", source_type, "as", channel)
+    async def audio_source_added(self, channel):
+        self.audio_sources.append(channel)
+        await self._server._bus.post(messagebus.AudioSourceAdded(
+            channel, self._address))
+
+    async def video_source_added(self, channel):
+        self.video_sources.append(channel)
+        await self._server._bus.post(messagebus.VideoSourceAdded(
+            channel, self._address))

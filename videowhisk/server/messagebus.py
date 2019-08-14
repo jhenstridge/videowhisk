@@ -56,3 +56,35 @@ class Consumer:
 
 class Message:
     __slots__ = ()
+
+
+class SourceMessage(Message):
+    __slots__ = ("channel", "remote_addr")
+
+    def __init__(self, channel, remote_addr):
+        self.channel = channel
+        self.remote_addr = remote_addr
+
+
+class AudioSourceMessage(SourceMessage):
+    __slots__ = ()
+
+
+class AudioSourceAdded(AudioSourceMessage):
+    __slots__ = ()
+
+
+class AudioSourceRemoved(AudioSourceMessage):
+    __slots__ = ()
+
+
+class VideoSourceMessage(SourceMessage):
+    __slots__ = ()
+
+
+class VideoSourceAdded(VideoSourceMessage):
+    __slots__ = ()
+
+
+class VideoSourceRemoved(VideoSourceMessage):
+    __slots__ = ()
