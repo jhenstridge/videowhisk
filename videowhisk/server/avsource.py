@@ -120,8 +120,8 @@ class AVSourceConnection:
     def on_demux_pad_added(self, demux, src_pad):
         caps = src_pad.query_caps(None)
         if caps.can_intersect(self._server._config.audio_caps):
-            queue = Gst.ElementFactory.make("queue", "aqueue")
-            sink = Gst.ElementFactory.make("interaudiosink", "asink")
+            queue = Gst.ElementFactory.make("queue")
+            sink = Gst.ElementFactory.make("interaudiosink")
             sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
             self._pipeline.add(queue, sink)
             src_pad.link(queue.get_static_pad("sink"))
@@ -132,8 +132,8 @@ class AVSourceConnection:
                 self._loop.create_task,
                 self.audio_source_added(sink.props.channel))
         elif caps.can_intersect(self._server._config.video_caps):
-            queue = Gst.ElementFactory.make("queue", "vqueue")
-            sink = Gst.ElementFactory.make("intervideosink", "vsink")
+            queue = Gst.ElementFactory.make("queue")
+            sink = Gst.ElementFactory.make("intervideosink")
             sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
             self._pipeline.add(queue, sink)
             src_pad.link(queue.get_static_pad("sink"))
