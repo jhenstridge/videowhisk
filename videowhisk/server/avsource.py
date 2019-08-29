@@ -7,9 +7,10 @@ from . import messagebus
 
 class AVSourceServer:
 
-    def __init__(self, bus, address, loop):
+    def __init__(self, config, bus, address, loop):
         self._loop = loop
         self._closed = False
+        self._config = config
         self._bus = bus
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setblocking(False)
@@ -17,8 +18,6 @@ class AVSourceServer:
         self._sock.bind(address)
         self._sock.listen(100)
         self._connections = {}
-        self.expected_audio_caps = Gst.Caps.from_string('audio/x-raw')
-        self.expected_video_caps = Gst.Caps.from_string('video/x-raw')
         self._run_task = self._loop.create_task(self.run())
 
     async def close(self):
@@ -120,7 +119,7 @@ class AVSourceConnection:
 
     def on_demux_pad_added(self, demux, src_pad):
         caps = src_pad.query_caps(None)
-        if caps.can_intersect(self._server.expected_audio_caps):
+        if caps.can_intersect(self._server._config.audio_caps):
             queue = Gst.ElementFactory.make("queue", "aqueue")
             sink = Gst.ElementFactory.make("interaudiosink", "asink")
             sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
@@ -132,7 +131,7 @@ class AVSourceConnection:
             self._loop.call_soon_threadsafe(
                 self._loop.create_task,
                 self.audio_source_added(sink.props.channel))
-        elif caps.can_intersect(self._server.expected_video_caps):
+        elif caps.can_intersect(self._server._config.video_caps):
             queue = Gst.ElementFactory.make("queue", "vqueue")
             sink = Gst.ElementFactory.make("intervideosink", "vsink")
             sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())

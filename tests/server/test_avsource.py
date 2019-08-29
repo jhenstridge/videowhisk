@@ -5,7 +5,7 @@ import unittest
 
 import asyncio_glib
 
-from videowhisk.server import avsource, messagebus
+from videowhisk.server import avsource, config, messagebus
 
 class AVSourceTests(unittest.TestCase):
 
@@ -13,8 +13,9 @@ class AVSourceTests(unittest.TestCase):
         self.loop = asyncio_glib.GLibEventLoop()
         self.loop.add_signal_handler(signal.SIGINT, self.loop.stop)
         self.bus = messagebus.MessageBus(self.loop)
+        self.config = config.Config()
         self.server = avsource.AVSourceServer(
-            self.bus, ('127.0.0.1', 0), self.loop)
+            self.config, self.bus, ('127.0.0.1', 0), self.loop)
 
     def tearDown(self):
         self.loop.run_until_complete(self.server.close())
@@ -45,7 +46,7 @@ class AVSourceTests(unittest.TestCase):
 
         proc = self.make_sender(
             "videotestsrc", "!",
-            "video/x-raw,format=I420,width=100,height=100,framerate=60/1", "!"
+            self.config.video_caps.to_string(), "!",
             "mux.")
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 1)
@@ -76,7 +77,7 @@ class AVSourceTests(unittest.TestCase):
 
         proc = self.make_sender(
             "audiotestsrc", "freq=440", "!",
-            "audio/x-raw,format=S16LE,channels=2,layout=interleaved,rate=48000", "!"
+            self.config.audio_caps.to_string(), "!",
             "mux.")
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 1)
@@ -107,11 +108,9 @@ class AVSourceTests(unittest.TestCase):
 
         proc = self.make_sender(
             "audiotestsrc", "freq=440", "!",
-            "audio/x-raw,format=S16LE,channels=2,layout=interleaved,rate=48000",
-            "!", "mux.",
+            self.config.audio_caps.to_string(), "!", "mux.",
             "videotestsrc", "!",
-            "video/x-raw,format=I420,width=100,height=100,framerate=60/1", "!"
-            "mux.")
+            self.config.video_caps.to_string(), "!", "mux.")
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 2)
         self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)

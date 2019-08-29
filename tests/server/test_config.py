@@ -29,3 +29,13 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(struct.get_value("pixel-aspect-ratio"),
                          Gst.Fraction(1, 1))
         self.assertEqual(struct.get_value("interlace-mode"), "progressive")
+
+    def test_read_string(self):
+        cfg = config.Config()
+        cfg.read_string("""
+[server]
+video_caps = video/x-raw,format=I420,width=100,height=100,framerate=25/1,pixel-aspect-ratio=1/1,interlace-mode=progressive
+""")
+        struct = cfg.video_caps.get_structure(0)
+        self.assertEqual(struct.get_value("width"), 100)
+        self.assertEqual(struct.get_value("height"), 100)

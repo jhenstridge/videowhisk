@@ -11,8 +11,12 @@ class Config:
         self._cfg.read(os.path.join(os.path.dirname(__file__), "default.cfg"))
         self._update()
 
-    def read(self, filename):
+    def read_file(self, filename):
         self._cfg.read(filename)
+        self._update()
+
+    def read_string(self, data):
+        self._cfg.read_string(data)
         self._update()
 
     def _update(self):

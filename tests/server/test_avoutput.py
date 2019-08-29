@@ -6,7 +6,7 @@ import aiohttp
 import asyncio_glib
 from gi.repository import Gst
 
-from videowhisk.server import avoutput, messagebus
+from videowhisk.server import avoutput, config, messagebus
 
 
 class AVOutputTests(unittest.TestCase):
@@ -14,9 +14,10 @@ class AVOutputTests(unittest.TestCase):
     def setUp(self):
         self.loop = asyncio_glib.GLibEventLoop()
         self.loop.add_signal_handler(signal.SIGINT, self.loop.stop)
+        self.config = config.Config()
         self.bus = messagebus.MessageBus(self.loop)
         self.server = avoutput.AVOutputServer(
-            self.bus, ("127.0.0.1", 0), self.loop)
+            self.config, self.bus, ("127.0.0.1", 0), self.loop)
 
     def tearDown(self):
         self.loop.run_until_complete(self.server.close())
@@ -25,9 +26,9 @@ class AVOutputTests(unittest.TestCase):
     def make_audio_source(self):
         pipeline = Gst.parse_launch("""
             audiotestsrc freq=440 !
-            audio/x-raw,format=S16LE,channels=2,layout=interleaved,rate=48000 !
+            {} !
             interaudiosink channel=source.audio
-        """)
+        """.format(self.config.audio_caps.to_string()))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
         self.loop.create_task(self.bus.post(messagebus.AudioSourceAdded("source.audio", "127.0.0.1")))
@@ -35,9 +36,9 @@ class AVOutputTests(unittest.TestCase):
     def make_video_source(self):
         pipeline = Gst.parse_launch("""
             videotestsrc !
-            video/x-raw,format=I420,width=1920,height=1080,framerate=25/1,pixel-aspect-ratio=1/1,interlace-mode=progressive !
+            {} !
             intervideosink channel=source.video
-        """)
+        """.format(self.config.video_caps.to_string()))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
         self.loop.create_task(self.bus.post(messagebus.VideoSourceAdded("source.video", "127.0.0.1")))

@@ -11,9 +11,10 @@ from . import messagebus
 
 class AVOutputServer:
 
-    def __init__(self, bus, address, loop):
+    def __init__(self, config, bus, address, loop):
         self._loop = loop
         self._closed = False
+        self._config = config
         bus.add_consumer(messagebus.SourceMessage, self.handle_message)
         self._connections = {}
         self._monitors = {}
@@ -103,10 +104,10 @@ class AVMonitor:
 
         if self.is_video:
             src = Gst.ElementFactory.make("intervideosrc")
-            caps = Gst.Caps.from_string("video/x-raw,format=I420,width=1920,height=1080,framerate=25/1,pixel-aspect-ratio=1/1,interlace-mode=progressive")
+            caps = self._server._config.video_caps
         else:
             src = Gst.ElementFactory.make("interaudiosrc")
-            caps = Gst.Caps.from_string("audio/x-raw,format=S16LE,channels=2,layout=interleaved,rate=48000")
+            caps = self._server._config.audio_caps
 
         src.props.channel = self._channel
         queue = Gst.ElementFactory.make("queue", "srcqueue")
