@@ -31,7 +31,7 @@ host = 127.0.0.1
         pipeline = Gst.parse_launch("""
             audiotestsrc freq=440 !
             {} !
-            interaudiosink channel=source.audio
+            interaudiosink channel=source.audio.monitor
         """.format(self.config.audio_caps.to_string()))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
@@ -41,7 +41,7 @@ host = 127.0.0.1
         pipeline = Gst.parse_launch("""
             videotestsrc !
             {} !
-            intervideosink channel=source.video
+            intervideosink channel=source.video.monitor
         """.format(self.config.video_caps.to_string()))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)

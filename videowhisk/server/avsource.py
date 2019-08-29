@@ -120,33 +120,40 @@ class AVSourceConnection:
     def on_demux_pad_added(self, demux, src_pad):
         caps = src_pad.query_caps(None)
         if caps.can_intersect(self._server._config.audio_caps):
-            queue = Gst.ElementFactory.make("queue")
-            sink = Gst.ElementFactory.make("interaudiosink")
-            sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
-            self._pipeline.add(queue, sink)
-            src_pad.link(queue.get_static_pad("sink"))
-            queue.link(sink)
-            queue.sync_state_with_parent()
-            sink.sync_state_with_parent()
+            channel = "{}.{}".format(self.name, src_pad.get_name())
+            self.make_sink(src_pad, "interaudiosink", channel)
             self._loop.call_soon_threadsafe(
                 self._loop.create_task,
-                self.audio_source_added(sink.props.channel))
+                self.audio_source_added(channel))
         elif caps.can_intersect(self._server._config.video_caps):
-            queue = Gst.ElementFactory.make("queue")
-            sink = Gst.ElementFactory.make("intervideosink")
-            sink.props.channel = "{}.{}".format(self.name, src_pad.get_name())
-            self._pipeline.add(queue, sink)
-            src_pad.link(queue.get_static_pad("sink"))
-            queue.link(sink)
-            queue.sync_state_with_parent()
-            sink.sync_state_with_parent()
+            channel = "{}.{}".format(self.name, src_pad.get_name())
+            self.make_sink(src_pad, "intervideosink", channel)
             self._loop.call_soon_threadsafe(
                 self._loop.create_task,
-                self.video_source_added(sink.props.channel))
+                self.video_source_added(channel))
         else:
             # By not connecting to the pad, we'll trigger a bus error
             # that will close the connection.
             print("Got unknown pad with caps {}".format(caps.to_string()))
+
+    def make_sink(self, src_pad, sinktype, channel):
+        queue = Gst.ElementFactory.make("queue")
+        tee = Gst.ElementFactory.make("tee")
+        self._pipeline.add(queue, tee)
+        src_pad.link(queue.get_static_pad("sink"))
+        queue.link(tee)
+        for output in ["monitor", "mix"]:
+            tee_pad = tee.get_request_pad("src_%u")
+            sink_queue = Gst.ElementFactory.make("queue")
+            sink = Gst.ElementFactory.make(sinktype)
+            sink.props.channel = "{}.{}".format(channel, output)
+            self._pipeline.add(sink_queue, sink)
+            tee_pad.link(sink_queue.get_static_pad("sink"))
+            sink_queue.link(sink)
+            sink_queue.sync_state_with_parent()
+            sink.sync_state_with_parent()
+        tee.sync_state_with_parent()
+        queue.sync_state_with_parent()
 
     async def audio_source_added(self, channel):
         self.audio_sources.append(channel)

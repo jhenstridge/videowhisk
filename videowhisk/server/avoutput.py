@@ -109,7 +109,7 @@ class AVMonitor:
             src = Gst.ElementFactory.make("interaudiosrc")
             caps = self._server._config.audio_caps
 
-        src.props.channel = self._channel
+        src.props.channel = "{}.{}".format(self._channel, "monitor")
         queue = Gst.ElementFactory.make("queue", "srcqueue")
         mux = Gst.ElementFactory.make("matroskamux")
         mux.props.streamable = True
