@@ -7,7 +7,7 @@ from . import messagebus
 
 class AVSourceServer:
 
-    def __init__(self, config, bus, address, loop):
+    def __init__(self, config, bus, loop):
         self._loop = loop
         self._closed = False
         self._config = config
@@ -15,7 +15,7 @@ class AVSourceServer:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setblocking(False)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        self._sock.bind(address)
+        self._sock.bind(config.avsource_addr)
         self._sock.listen(100)
         self._connections = {}
         self._run_task = self._loop.create_task(self.run())

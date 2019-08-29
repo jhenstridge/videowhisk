@@ -14,8 +14,12 @@ class AVSourceTests(unittest.TestCase):
         self.loop.add_signal_handler(signal.SIGINT, self.loop.stop)
         self.bus = messagebus.MessageBus(self.loop)
         self.config = config.Config()
+        self.config.read_string("""
+[server]
+host = 127.0.0.1
+""")
         self.server = avsource.AVSourceServer(
-            self.config, self.bus, ('127.0.0.1', 0), self.loop)
+            self.config, self.bus, self.loop)
 
     def tearDown(self):
         self.loop.run_until_complete(self.server.close())

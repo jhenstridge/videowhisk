@@ -23,3 +23,10 @@ class Config:
         server = self._cfg["server"]
         self.audio_caps = Gst.Caps.from_string(server["audio_caps"])
         self.video_caps = Gst.Caps.from_string(server["video_caps"])
+
+        host = server["host"]
+        if not host:
+            # XXX: consider IPV6
+            host = "0.0.0.0"
+        self.avsource_addr = (host, int(server["avsource_port"]))
+        self.avoutput_addr = (host, int(server["avoutput_port"]))
