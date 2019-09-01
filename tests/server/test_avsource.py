@@ -28,7 +28,7 @@ host = 127.0.0.1
 
     def make_sender(self, *pipeline):
         port = self.server.local_addr()[1]
-        args = ["gst-launch-1.0"]
+        args = ["gst-launch-1.0", "--quiet"]
         args.extend(pipeline)
         args.extend(["matroskamux", "name=mux", "!", "tcpclientsink",
                      "host=127.0.0.1", "port={}".format(port)])

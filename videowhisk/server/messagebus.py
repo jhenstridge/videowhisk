@@ -88,3 +88,11 @@ class VideoSourceAdded(VideoSourceMessage):
 
 class VideoSourceRemoved(VideoSourceMessage):
     __slots__ = ()
+
+
+class AudioMixStatus(Message):
+    __slots__ = ("active_source", "volumes")
+
+    def __init__(self, active_source, volumes):
+        self.active_source = active_source
+        self.volumes = volumes
