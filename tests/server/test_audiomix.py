@@ -22,15 +22,15 @@ class AudioMixTests(unittest.TestCase):
         self.loop.run_until_complete(self.amix.close())
         self.loop.run_until_complete(self.bus.close())
 
-    def make_audio_source(self):
+    def make_audio_source(self, channel="source.audio"):
         pipeline = Gst.parse_launch("""
             audiotestsrc freq=440 !
             {} !
-            interaudiosink channel=source.audio.mix
-        """.format(self.config.audio_caps.to_string()))
+            interaudiosink channel={}.mix
+        """.format(self.config.audio_caps.to_string(), channel))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
-        self.loop.create_task(self.bus.post(messagebus.AudioSourceAdded("source.audio", "127.0.0.1")))
+        self.loop.create_task(self.bus.post(messagebus.AudioSourceAdded(channel, "127.0.0.1")))
 
     def test_add_remove_sources(self):
         future = self.loop.create_future()
@@ -53,3 +53,38 @@ class AudioMixTests(unittest.TestCase):
         message = future.result()
         self.assertEqual(message.active_source, None)
         self.assertEqual(message.volumes, {})
+
+    def test_set_audio_source(self):
+        future = self.loop.create_future()
+        async def consumer(queue):
+            while True:
+                message = await queue.get()
+                future.set_result(message)
+                queue.task_done()
+        self.bus.add_consumer(messagebus.AudioMixStatus, consumer)
+
+        # Create sources
+        self.make_audio_source("source.audio1")
+        self.loop.run_until_complete(future)
+        future = self.loop.create_future()
+        self.make_audio_source("source.audio2")
+        self.loop.run_until_complete(future)
+
+        # Reconfigure the audio mixer
+        future = self.loop.create_future()
+        self.loop.create_task(self.bus.post(messagebus.SetAudioSource("source.audio1")))
+        self.loop.run_until_complete(future)
+        message = future.result()
+        self.assertEqual(message.active_source, "source.audio1")
+
+        future = self.loop.create_future()
+        self.loop.create_task(self.bus.post(messagebus.SetAudioSource("source.audio2")))
+        self.loop.run_until_complete(future)
+        message = future.result()
+        self.assertEqual(message.active_source, "source.audio2")
+
+        future = self.loop.create_future()
+        self.loop.create_task(self.bus.post(messagebus.SetAudioSource(None)))
+        self.loop.run_until_complete(future)
+        message = future.result()
+        self.assertEqual(message.active_source, None)

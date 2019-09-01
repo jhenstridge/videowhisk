@@ -96,3 +96,10 @@ class AudioMixStatus(Message):
     def __init__(self, active_source, volumes):
         self.active_source = active_source
         self.volumes = volumes
+
+
+class SetAudioSource(Message):
+    __slots__ = ("active_source",)
+
+    def __init__(self, active_source):
+        self.active_source = active_source

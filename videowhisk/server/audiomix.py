@@ -10,7 +10,8 @@ class AudioMix:
         self._loop = loop
         self._config = config
         self._bus = bus
-        bus.add_consumer(messagebus.AudioSourceMessage, self.handle_message)
+        bus.add_consumer((messagebus.AudioSourceMessage,
+                          messagebus.SetAudioSource), self.handle_message)
         self._sources = {}
         self._active_source = None
         self.make_pipeline()
@@ -57,6 +58,15 @@ class AudioMix:
                     source.close()
                     if self._active_source == source.channel:
                         self._active_source = None
+            elif isinstance(message, messagebus.SetAudioSource):
+                if self._active_source != message.active_source and (
+                        message.active_source is None or
+                        message.active_source in self._sources):
+                    if self._active_source is not None:
+                        self._sources[self._active_source].mute = True
+                    self._active_source = message.active_source
+                    if self._active_source is not None:
+                        self._sources[self._active_source].mute = False
             queue.task_done()
             await self._bus.post(self.make_audio_mix_status())
             source = None
