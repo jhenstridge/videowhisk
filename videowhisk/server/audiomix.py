@@ -100,6 +100,9 @@ class AudioMixSource:
         self._source.sync_state_with_parent()
 
     def close(self):
+        # XXX: This really needs to asynchronously drain the elements
+        # before removing them.
+        #   https://gstreamer.freedesktop.org/documentation/application-development/advanced/pipeline-manipulation.html?gi-language=c#changing-elements-in-a-pipeline
         for el in [self._source, self._filter, self._queue]:
             el.set_state(Gst.State.NULL)
             self._pipeline.remove(el)
