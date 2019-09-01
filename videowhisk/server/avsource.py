@@ -1,9 +1,14 @@
 import asyncio
+import logging
 import socket
 
 from gi.repository import GLib, Gst
 
-from . import messagebus
+from . import messagebus, utils
+
+
+log = logging.getLogger(__name__)
+
 
 class AVSourceServer:
 
@@ -24,7 +29,7 @@ class AVSourceServer:
         if self._closed:
             return
         self._closed = True
-        self._run_task.cancel()
+        utils.cancel_task(self._run_task)
         self._sock.close()
         for conn in list(self._connections.values()):
             await conn.close()
@@ -109,7 +114,9 @@ class AVSourceConnection:
                 self._loop.create_task, self.close())
         elif message.type == Gst.MessageType.ERROR:
             (error, debug) = message.parse_error()
-            print("Bus error:", error, debug)
+            log.error("Error from %s: %s", message.src.get_name(), error.message)
+            if debug:
+                log.error("Debug info: %s", debug)
             self._loop.call_soon_threadsafe(
                 self._loop.create_task, self.close())
         else:
@@ -134,7 +141,7 @@ class AVSourceConnection:
         else:
             # By not connecting to the pad, we'll trigger a bus error
             # that will close the connection.
-            print("Got unknown pad with caps {}".format(caps.to_string()))
+            log.warning("Got unknown pad with caps %s", caps.to_string())
 
     def make_sink(self, src_pad, sinktype, channel):
         tee = Gst.ElementFactory.make("tee")

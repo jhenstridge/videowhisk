@@ -1,5 +1,7 @@
 import asyncio
 
+from . import utils
+
 
 class MessageBus:
     def __init__(self, loop):
@@ -14,7 +16,7 @@ class MessageBus:
             return
         self._closed = True
         await self._post_queue.join()
-        self._run_task.cancel()
+        utils.cancel_task(self._run_task)
         for c in self._consumers:
             await c.close()
 
@@ -51,7 +53,7 @@ class Consumer:
     async def close(self):
         self.closed = True
         await self.queue.join()
-        self.task.cancel()
+        utils.cancel_task(self.task)
 
 
 class Message:

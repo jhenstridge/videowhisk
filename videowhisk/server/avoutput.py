@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import socket
 
 from gi.repository import Gst
@@ -7,7 +8,11 @@ try:
 except ImportError:
     from http_parser.pyparser import HttpParser
 
-from . import messagebus
+from . import messagebus, utils
+
+
+log = logging.getLogger(__name__)
+
 
 class AVOutputServer:
 
@@ -30,7 +35,7 @@ class AVOutputServer:
         if self._closed:
             return
         self._closed = True
-        self._run_task.cancel()
+        utils.cancel_task(self._run_task)
         self._sock.close()
 
         for conn in list(self._connections.values()):
@@ -51,18 +56,18 @@ class AVOutputServer:
         while True:
             message = await queue.get()
             if isinstance(message, messagebus.AudioSourceAdded):
-                print("Adding audio monitor", message.channel)
+                log.info("Adding audio monitor for %s", message.channel)
                 monitor = AVMonitor(message.channel, False, self)
                 self._monitors[message.channel] = monitor
                 monitor.start()
             elif isinstance(message, messagebus.VideoSourceAdded):
-                print("Adding video monitor", message.channel)
+                log.info("Adding video monitor for %s", message.channel)
                 monitor = AVMonitor(message.channel, True, self)
                 self._monitors[message.channel] = monitor
                 monitor.start()
             elif isinstance(message, (messagebus.AudioSourceRemoved,
                                       messagebus.VideoSourceRemoved)):
-                print("Removing monitor", message.channel)
+                log.info("Removing monitor for %s", message.channel)
                 monitor = self._monitors.pop(message.channel, None)
                 if monitor is not None:
                     await monitor.close()
@@ -142,7 +147,9 @@ class AVMonitor:
         self._sink.emit("add", fileno)
 
     def on_client_removed(self, sink, fileno, status):
-        print("client-removed", fileno, status.value_nick)
+        if status == 3:
+            log.warning("About to remove fd %d from multifdsink because "
+                        "it is too slow", fileno)
 
     def on_client_fd_removed(self, sink, fileno):
         self._filenos.remove(fileno)
