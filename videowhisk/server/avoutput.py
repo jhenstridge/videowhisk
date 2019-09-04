@@ -129,13 +129,15 @@ class AVMonitor:
         queue.link(mux)
         mux.link(self._sink)
 
-        self._sink.connect("client-removed", self.on_client_removed)
-        self._sink_signal_id = self._sink.connect(
+        self._client_removed_id = self._sink.connect(
+            "client-removed", self.on_client_removed)
+        self._client_fd_removed_id = self._sink.connect(
             "client-fd-removed", self.on_client_fd_removed)
 
     def destroy_pipeline(self):
         self._pipeline.set_state(Gst.State.NULL)
-        self._sink.disconnect(self._sink_signal_id)
+        self._sink.disconnect(self._client_removed_id)
+        self._sink.disconnect(self._client_fd_removed_id)
         self._sink = None
         self._pipeline = None
 
