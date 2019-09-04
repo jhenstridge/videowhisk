@@ -50,12 +50,13 @@ class AudioMix:
             message = await queue.get()
             if isinstance(message, messagebus.AudioSourceAdded):
                 source = AudioMixSource(
-                    self._config, self._pipeline, message.channel, self._mixer)
+                    self._config, self._pipeline, message.channel,
+                    self._mixer, self._loop)
                 self._sources[message.channel] = source
             elif isinstance(message, messagebus.AudioSourceRemoved):
                 source = self._sources.pop(message.channel, None)
                 if source is not None:
-                    source.close()
+                    await source.close()
                     if self._active_source == source.channel:
                         self._active_source = None
             elif isinstance(message, messagebus.SetAudioSource):
@@ -78,10 +79,11 @@ class AudioMix:
 
 
 class AudioMixSource:
-    def __init__(self, config, pipeline, channel, mixer):
+    def __init__(self, config, pipeline, channel, mixer, loop):
         self._pipeline = pipeline
         self.channel = channel
         self._mixer = mixer
+        self._loop = loop
 
         self._source = Gst.ElementFactory.make("interaudiosrc")
         self._source.props.channel = "{}.mix".format(channel)
@@ -99,14 +101,41 @@ class AudioMixSource:
         self._filter.sync_state_with_parent()
         self._source.sync_state_with_parent()
 
-    def close(self):
-        # XXX: This really needs to asynchronously drain the elements
-        # before removing them.
-        #   https://gstreamer.freedesktop.org/documentation/application-development/advanced/pipeline-manipulation.html?gi-language=c#changing-elements-in-a-pipeline
+    async def close(self):
+        fut = self._loop.create_future()
+        self._source.get_static_pad("src").add_probe(
+            Gst.PadProbeType.BLOCK_DOWNSTREAM, self._source_pad_probe, fut)
+        await fut
+
+        # Stop the elements and remove them from the pipeline:
         for el in [self._source, self._filter, self._queue]:
             el.set_state(Gst.State.NULL)
             self._pipeline.remove(el)
         self._mixer.release_request_pad(self._sink_pad)
+
+    def _source_pad_probe(self, pad, info, fut):
+        pad.remove_probe(info.id)
+
+        # Set new probe to wait for end of stream
+        self._queue.get_static_pad("src").add_probe(
+            Gst.PadProbeType.BLOCK | Gst.PadProbeType.EVENT_DOWNSTREAM,
+            self._queue_pad_probe, fut)
+
+        # Push EOS into element.  The pad probe will be triggered when
+        # the EOS leaves the element and all data has drained.
+        self._filter.get_static_pad("sink").send_event(Gst.Event.new_eos())
+        return Gst.PadProbeReturn.OK
+
+    def _queue_pad_probe(self, pad, info, fut):
+        # Pass any non-EOS events on
+        if info.get_event().type != Gst.EventType.EOS:
+            return Gst.PadProbeReturn.PASS
+
+        # All data has emptied from the elements we are going to
+        # remove.  Drop the EOS event and signal the future.
+        pad.remove_probe(info.id)
+        self._loop.call_soon_threadsafe(fut.set_result, None)
+        return Gst.PadProbeReturn.DROP
 
     @property
     def mute(self):
