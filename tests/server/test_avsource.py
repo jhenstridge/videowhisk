@@ -1,9 +1,9 @@
 import asyncio
 import signal
-import subprocess
 import unittest
 
 import asyncio_glib
+from gi.repository import Gst
 
 from videowhisk.server import avsource, config, messagebus
 
@@ -26,15 +26,15 @@ host = 127.0.0.1
         self.loop.run_until_complete(self.bus.close())
         self.loop.close()
 
-    def make_sender(self, *pipeline):
+    def make_sender(self, source):
         port = self.server.local_addr()[1]
-        args = ["gst-launch-1.0", "--quiet"]
-        args.extend(pipeline)
-        args.extend(["matroskamux", "name=mux", "!", "tcpclientsink",
-                     "host=127.0.0.1", "port={}".format(port)])
-        proc = subprocess.Popen(args, stdin=subprocess.DEVNULL)
-        self.addCleanup(proc.terminate)
-        return proc
+        pipeline = Gst.parse_launch("""
+            {}
+            matroskamux name=mux !
+            tcpclientsink host=127.0.0.1 port={}
+        """.format(source, port))
+        self.addCleanup(pipeline.set_state, Gst.State.NULL)
+        return pipeline
 
     def test_send_video(self):
         messages = []
@@ -48,9 +48,10 @@ host = 127.0.0.1
                 queue.task_done()
         self.bus.add_consumer(messagebus.SourceMessage, consumer)
 
-        proc = self.make_sender(
-            "videotestsrc", "!",
-            self.config.video_caps.to_string(), "!", "mux.")
+        sender = self.make_sender("""
+            videotestsrc ! {} ! mux.
+        """.format(self.config.video_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 1)
         self.assertIsInstance(messages[0], messagebus.VideoSourceAdded)
@@ -58,8 +59,7 @@ host = 127.0.0.1
 
         messages.clear()
         future = self.loop.create_future()
-        proc.terminate()
-        proc.wait()
+        sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 1)
@@ -78,9 +78,10 @@ host = 127.0.0.1
                 queue.task_done()
         self.bus.add_consumer(messagebus.SourceMessage, consumer)
 
-        proc = self.make_sender(
-            "audiotestsrc", "freq=440", "!",
-            self.config.audio_caps.to_string(), "!", "mux.")
+        sender = self.make_sender("""
+            audiotestsrc freq=440 ! {} ! mux.
+        """.format(self.config.audio_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 1)
         self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)
@@ -88,8 +89,7 @@ host = 127.0.0.1
 
         messages.clear()
         future = self.loop.create_future()
-        proc.terminate()
-        proc.wait()
+        sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 1)
@@ -108,11 +108,12 @@ host = 127.0.0.1
                 queue.task_done()
         self.bus.add_consumer(messagebus.SourceMessage, consumer)
 
-        proc = self.make_sender(
-            "audiotestsrc", "freq=440", "!",
-            self.config.audio_caps.to_string(), "!", "mux.",
-            "audiotestsrc", "freq=440", "!",
-            self.config.audio_caps.to_string(), "!", "mux.")
+        sender = self.make_sender("""
+            audiotestsrc freq=440 ! {} ! mux.
+            audiotestsrc freq=440 ! {} ! mux.
+        """.format(self.config.audio_caps.to_string(),
+                   self.config.audio_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 2)
         self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)
@@ -122,8 +123,7 @@ host = 127.0.0.1
 
         messages.clear()
         future = self.loop.create_future()
-        proc.terminate()
-        proc.wait()
+        sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 2)
@@ -144,11 +144,12 @@ host = 127.0.0.1
                 queue.task_done()
         self.bus.add_consumer(messagebus.SourceMessage, consumer)
 
-        proc = self.make_sender(
-            "audiotestsrc", "freq=440", "!",
-            self.config.audio_caps.to_string(), "!", "mux.",
-            "videotestsrc", "!",
-            self.config.video_caps.to_string(), "!", "mux.")
+        sender = self.make_sender("""
+            audiotestsrc freq=440 ! {} ! mux.
+            videotestsrc ! {} ! mux.
+        """.format(self.config.audio_caps.to_string(),
+                   self.config.video_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 2)
         self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)
@@ -158,8 +159,7 @@ host = 127.0.0.1
 
         messages.clear()
         future = self.loop.create_future()
-        proc.terminate()
-        proc.wait()
+        sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
         self.assertEqual(len(messages), 2)
