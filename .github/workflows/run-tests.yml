@@ -1,0 +1,28 @@
+name: run-tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y \
+            python3-aiohttp \
+            python3-gi \
+            python3-gst-1.0 \
+            python3-http-parser \
+            python3-pip \
+            python3-setuptools \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad
+          sudo pip3 install -r requirements.txt
+      - name: Run tests
+        run: python3 setup.py test
