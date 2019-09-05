@@ -26,6 +26,7 @@ host = 127.0.0.1
     def tearDown(self):
         self.loop.run_until_complete(self.server.close())
         self.loop.run_until_complete(self.bus.close())
+        self.loop.close()
 
     def make_audio_source(self):
         pipeline = Gst.parse_launch("""

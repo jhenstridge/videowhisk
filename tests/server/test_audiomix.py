@@ -21,6 +21,7 @@ class AudioMixTests(unittest.TestCase):
     def tearDown(self):
         self.loop.run_until_complete(self.amix.close())
         self.loop.run_until_complete(self.bus.close())
+        self.loop.close()
 
     def make_audio_source(self, channel="source.audio"):
         pipeline = Gst.parse_launch("""
