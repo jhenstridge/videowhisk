@@ -33,6 +33,37 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.avsource_addr, ("0.0.0.0", 0))
         self.assertEqual(cfg.avoutput_addr, ("0.0.0.0", 0))
 
+        self.assertEqual(sorted(cfg.composite_modes.keys()),
+                         ["fullscreen", "picture-in-picture", "side-by-side-equal", "side-by-side-preview"])
+
+        fullscreen = cfg.composite_modes["fullscreen"]
+        self.assertEqual(fullscreen.a.xpos, 0)
+        self.assertEqual(fullscreen.a.width, 1920)
+        self.assertEqual(fullscreen.a.ypos, 0)
+        self.assertEqual(fullscreen.a.height, 1080)
+        self.assertEqual(fullscreen.a.alpha, 1.0)
+        self.assertEqual(fullscreen.a.zorder, 1)
+        self.assertEqual(fullscreen.b.xpos, 0)
+        self.assertEqual(fullscreen.b.width, 1920)
+        self.assertEqual(fullscreen.b.ypos, 0)
+        self.assertEqual(fullscreen.b.height, 1080)
+        self.assertEqual(fullscreen.b.alpha, 0.0)
+        self.assertEqual(fullscreen.a.zorder, 1)
+
+        pip = cfg.composite_modes["picture-in-picture"]
+        self.assertEqual(pip.a.xpos, 0)
+        self.assertEqual(pip.a.width, 1920)
+        self.assertEqual(pip.a.xpos, 0)
+        self.assertEqual(pip.a.height, 1080)
+        self.assertEqual(pip.a.alpha, 1.0)
+        self.assertEqual(pip.a.zorder, 1)
+        self.assertEqual(pip.b.xpos, 1421)
+        self.assertEqual(pip.b.width, 480)
+        self.assertEqual(pip.b.ypos, 800)
+        self.assertEqual(pip.b.height, 270)
+        self.assertEqual(pip.b.alpha, 1.0)
+        self.assertEqual(pip.b.zorder, 2)
+
     def test_read_string(self):
         cfg = config.Config()
         cfg.read_string("""
