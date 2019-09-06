@@ -2,7 +2,7 @@ import operator
 
 from gi.repository import Gst
 
-from . import messagebus
+from . import messagebus, utils
 
 class AudioMix:
     def __init__(self, config, bus, loop):
@@ -137,18 +137,5 @@ class AudioMixSource:
         self._loop.call_soon_threadsafe(fut.set_result, None)
         return Gst.PadProbeReturn.DROP
 
-    @property
-    def mute(self):
-        return self._sink_pad.props.mute
-
-    @mute.setter
-    def mute(self, value):
-        self._sink_pad.props.mute = value
-
-    @property
-    def volume(self):
-        return self._sink_pad.props.volume
-
-    @volume.setter
-    def volume(self, value):
-        self._sink_pad.props.volume = value
+    mute = utils.forward_prop("_sink_pad.props.mute")
+    volume = utils.forward_prop("_sink_pad.props.volume")
