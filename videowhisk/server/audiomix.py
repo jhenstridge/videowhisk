@@ -24,15 +24,13 @@ class AudioMix:
         self._pipeline = Gst.Pipeline("audiomix")
         self._mixer = Gst.ElementFactory.make("audiomixer")
         tee = Gst.ElementFactory.make("tee")
-        self._pipeline.add(self._mixer, tee)
+        queue = Gst.ElementFactory.make("queue")
+        sink = Gst.ElementFactory.make("interaudiosink")
+        sink.props.channel = "audiomix.output"
+        self._pipeline.add(self._mixer, tee, queue, sink)
         self._mixer.link_filtered(tee, self._config.audio_caps)
-        for output in ["monitor", "mix"]:
-            queue = Gst.ElementFactory.make("queue")
-            sink = Gst.ElementFactory.make("interaudiosink")
-            sink.props.channel = "audiomix.{}".format(output)
-            self._pipeline.add(queue, sink)
-            tee.link(queue)
-            queue.link(sink)
+        tee.link(queue)
+        queue.link(sink)
         self._pipeline.set_state(Gst.State.PLAYING)
 
     def destroy_pipeline(self):

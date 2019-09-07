@@ -27,15 +27,13 @@ class VideoMix:
         self._pipeline = Gst.Pipeline("videomix")
         self._mixer = Gst.ElementFactory.make("compositor")
         tee = Gst.ElementFactory.make("tee")
-        self._pipeline.add(self._mixer, tee)
+        queue = Gst.ElementFactory.make("queue")
+        sink = Gst.ElementFactory.make("intervideosink")
+        sink.props.channel = "videomix.output"
+        self._pipeline.add(self._mixer, tee, queue, sink)
         self._mixer.link_filtered(tee, self._config.video_caps)
-        for output in ["monitor", "mix"]:
-            queue = Gst.ElementFactory.make("queue")
-            sink = Gst.ElementFactory.make("intervideosink")
-            sink.props.channel = "videomix.{}".format(output)
-            self._pipeline.add(queue, sink)
-            tee.link(queue)
-            queue.link(sink)
+        tee.link(queue)
+        queue.link(sink)
         self._pipeline.set_state(Gst.State.PLAYING)
 
     def destroy_pipeline(self):
