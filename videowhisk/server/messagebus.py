@@ -1,6 +1,10 @@
 import asyncio
+import logging
 
 from . import utils
+
+
+log = logging.getLogger(__name__)
 
 
 class MessageBus:
@@ -32,7 +36,9 @@ class MessageBus:
             self._post_queue.task_done()
 
     async def post(self, message):
-        assert not self._closed
+        if self._closed:
+            log.warning("Attempt to send message %r on closed bus", message)
+            return
         await self._post_queue.put(message)
 
     def add_consumer(self, types, consumer):
