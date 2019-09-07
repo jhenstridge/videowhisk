@@ -29,6 +29,11 @@ class AVOutputServer:
         self._sock.bind(config.avoutput_addr)
         self._sock.listen(100)
 
+        # Add a special monitor for the mixer output
+        m = OutputMonitor("output", self)
+        self._monitors["output"] = m
+        m.start()
+
         self._run_task = self._loop.create_task(self.run())
 
     async def close(self):
@@ -174,6 +179,26 @@ class VideoMonitor(AVMonitorBase):
         queue = Gst.ElementFactory.make("queue", "srcqueue")
         self._pipeline.add(src, queue)
         src.link_filtered(queue, self._server._config.video_caps)
+        queue.link(mux)
+
+class OutputMonitor(AVMonitorBase):
+    """A monitor for the output from the audio and video mixers."""
+
+    has_video = True
+
+    def make_source(self, mux):
+        src = Gst.ElementFactory.make("intervideosrc")
+        src.props.channel = "videomix.output"
+        queue = Gst.ElementFactory.make("queue", "vsrcqueue")
+        self._pipeline.add(src, queue)
+        src.link_filtered(queue, self._server._config.video_caps)
+        queue.link(mux)
+
+        src = Gst.ElementFactory.make("interaudiosrc")
+        src.props.channel = "audiomix.output"
+        queue = Gst.ElementFactory.make("queue", "asrcqueue")
+        self._pipeline.add(src, queue)
+        src.link_filtered(queue, self._server._config.audio_caps)
         queue.link(mux)
 
 
