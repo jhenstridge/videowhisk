@@ -105,3 +105,21 @@ class SetAudioSource(Message):
 
     def __init__(self, active_source):
         self.active_source = active_source
+
+
+class VideoMixStatus(Message):
+    __slots__ = ("composite_mode", "source_a", "source_b")
+
+    def __init__(self, composite_mode, source_a, source_b):
+        self.composite_mode = composite_mode
+        self.source_a = source_a
+        self.source_b = source_b
+
+
+class SetVideoSource(Message):
+    __slots__ = ("composite_mode", "source_a", "source_b")
+
+    def __init__(self, composite_mode, source_a, source_b):
+        self.composite_mode = composite_mode
+        self.source_a = source_a
+        self.source_b = source_b

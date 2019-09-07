@@ -1,5 +1,3 @@
-import operator
-
 from gi.repository import Gst
 
 from . import messagebus, utils

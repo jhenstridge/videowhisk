@@ -44,9 +44,9 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(fullscreen.a.alpha, 1.0)
         self.assertEqual(fullscreen.a.zorder, 1)
         self.assertEqual(fullscreen.b.xpos, 0)
-        self.assertEqual(fullscreen.b.width, 1920)
+        self.assertEqual(fullscreen.b.width, 0)
         self.assertEqual(fullscreen.b.ypos, 0)
-        self.assertEqual(fullscreen.b.height, 1080)
+        self.assertEqual(fullscreen.b.height, 0)
         self.assertEqual(fullscreen.b.alpha, 0.0)
         self.assertEqual(fullscreen.a.zorder, 1)
 
