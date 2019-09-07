@@ -57,12 +57,12 @@ class AVOutputServer:
             message = await queue.get()
             if isinstance(message, messagebus.AudioSourceAdded):
                 log.info("Adding audio monitor for %s", message.channel)
-                monitor = AVMonitor(message.channel, False, self)
+                monitor = AudioMonitor(message.channel, self)
                 self._monitors[message.channel] = monitor
                 monitor.start()
             elif isinstance(message, messagebus.VideoSourceAdded):
                 log.info("Adding video monitor for %s", message.channel)
-                monitor = AVMonitor(message.channel, True, self)
+                monitor = VideoMonitor(message.channel, self)
                 self._monitors[message.channel] = monitor
                 monitor.start()
             elif isinstance(message, (messagebus.AudioSourceRemoved,
@@ -85,11 +85,13 @@ class AVOutputServer:
             await conn.close()
 
 
-class AVMonitor:
-    def __init__(self, channel, is_video, server):
+class AVMonitorBase:
+
+    has_video = False
+
+    def __init__(self, channel, server):
         self._closed = False
         self._channel = channel
-        self.is_video = is_video
         self._server = server
         self._loop = server._loop
         self._filenos = set()
@@ -103,19 +105,13 @@ class AVMonitor:
         for fileno in self._filenos:
             await self._server._monitor_remove_fd(fileno)
 
+    def make_source(self, mux):
+        raise NotImplementedError()
+
     def make_pipeline(self):
         self._pipeline = Gst.Pipeline("monitor.{}".format(self._channel))
         self._pipeline.use_clock(Gst.SystemClock.obtain())
 
-        if self.is_video:
-            src = Gst.ElementFactory.make("intervideosrc")
-            caps = self._server._config.video_caps
-        else:
-            src = Gst.ElementFactory.make("interaudiosrc")
-            caps = self._server._config.audio_caps
-
-        src.props.channel = "{}.{}".format(self._channel, "monitor")
-        queue = Gst.ElementFactory.make("queue", "srcqueue")
         mux = Gst.ElementFactory.make("matroskamux")
         mux.props.streamable = True
         mux.props.writing_app = "videowhisk"
@@ -124,9 +120,8 @@ class AVMonitor:
         self._sink.props.buffers_max = 500
         self._sink.props.sync_method = 1 # "next-keyframe"
 
-        self._pipeline.add(src, queue, mux, self._sink)
-        src.link_filtered(queue, caps)
-        queue.link(mux)
+        self._pipeline.add(mux, self._sink)
+        self.make_source(mux)
         mux.link(self._sink)
 
         self._client_removed_id = self._sink.connect(
@@ -157,6 +152,29 @@ class AVMonitor:
         self._filenos.remove(fileno)
         self._loop.call_soon_threadsafe(
             self._loop.create_task, self._server._monitor_remove_fd(fileno))
+
+class AudioMonitor(AVMonitorBase):
+
+    def make_source(self, mux):
+        src = Gst.ElementFactory.make("interaudiosrc")
+        src.props.channel = "{}.{}".format(self._channel, "monitor")
+        queue = Gst.ElementFactory.make("queue", "srcqueue")
+        self._pipeline.add(src, queue)
+        src.link_filtered(queue, self._server._config.audio_caps)
+        queue.link(mux)
+
+
+class VideoMonitor(AVMonitorBase):
+
+    has_video = True
+
+    def make_source(self, mux):
+        src = Gst.ElementFactory.make("intervideosrc")
+        src.props.channel = "{}.{}".format(self._channel, "monitor")
+        queue = Gst.ElementFactory.make("queue", "srcqueue")
+        self._pipeline.add(src, queue)
+        src.link_filtered(queue, self._server._config.video_caps)
+        queue.link(mux)
 
 
 class AVOutputConnection:
@@ -207,7 +225,7 @@ class AVOutputConnection:
             return
 
         response = b"HTTP/1.1 200 OK\r\n"
-        if monitor.is_video:
+        if monitor.has_video:
             response += b"Content-Type: video/x-matroska\r\n\r\n"
         else:
             response += b"Content-Type: audio/x-matroska\r\n\r\n"
