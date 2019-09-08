@@ -4,10 +4,15 @@ import unittest
 from videowhisk.server import messagebus
 
 
-class MessageOne(messagebus.Message):
+class BaseMessage:
     pass
 
-class MessageTwo(messagebus.Message):
+
+class MessageOne(BaseMessage):
+    pass
+
+
+class MessageTwo(BaseMessage):
     pass
 
 
@@ -51,7 +56,7 @@ class MessageBusTests(unittest.TestCase):
             while True:
                 consumer3_messages.append(await queue.get())
                 queue.task_done()
-        bus.add_consumer(messagebus.Message, consumer3)
+        bus.add_consumer(BaseMessage, consumer3)
 
         # Accept the two message types
         consumer4_messages = []

@@ -6,7 +6,8 @@ import aiohttp
 import asyncio_glib
 from gi.repository import Gst
 
-from videowhisk.server import config, messagebus, server
+from videowhisk.common import messages
+from videowhisk.server import config, server
 
 
 class ServerTests(unittest.TestCase):
@@ -46,7 +47,7 @@ host = 127.0.0.1
                 if len(source_messages) == 3:
                     source_future.set_result(None)
                 queue.task_done()
-        self.server.bus.add_consumer(messagebus.SourceMessage, source_consumer)
+        self.server.bus.add_consumer(messages.SourceMessage, source_consumer)
         # Create input sources
         sender = self.make_sender("""
             videotestsrc ! {} ! mux.
@@ -72,23 +73,23 @@ host = 127.0.0.1
         async def mixer_consumer(queue):
             while True:
                 message = await queue.get()
-                if isinstance(message, messagebus.AudioMixStatus):
+                if isinstance(message, messages.AudioMixStatus):
                     if message.active_source == "c2.audio_0":
                         amix_future.set_result(None)
-                if isinstance(message, messagebus.VideoMixStatus):
+                if isinstance(message, messages.VideoMixStatus):
                     if (message.composite_mode == "picture-in-picture" and
                         message.source_a == "c0.video_0" and
                         message.source_b == "c1.video_0"):
                         vmix_future.set_result(None)
                 queue.task_done()
         self.server.bus.add_consumer(
-            (messagebus.AudioMixStatus, messagebus.VideoMixStatus),
+            (messages.AudioMixStatus, messages.VideoMixStatus),
             mixer_consumer)
 
         self.loop.create_task(self.server.bus.post(
-            messagebus.SetAudioSource("c2.audio_0")))
+            messages.SetAudioSource("c2.audio_0")))
         self.loop.create_task(self.server.bus.post(
-            messagebus.SetVideoSource("picture-in-picture", "c0.video_0", "c1.video_0")))
+            messages.SetVideoSource("picture-in-picture", "c0.video_0", "c1.video_0")))
         self.loop.run_until_complete(amix_future)
         amix_future.result()
         self.loop.run_until_complete(vmix_future)

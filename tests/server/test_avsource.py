@@ -5,6 +5,7 @@ import unittest
 import asyncio_glib
 from gi.repository import Gst
 
+from videowhisk.common import messages
 from videowhisk.server import avsource, config, messagebus
 
 class AVSourceTests(unittest.TestCase):
@@ -37,76 +38,76 @@ host = 127.0.0.1
         return pipeline
 
     def test_send_video(self):
-        messages = []
+        received = []
         future = self.loop.create_future()
         async def consumer(queue):
             while True:
                 message = await queue.get()
-                messages.append(message)
-                if len(messages) == 1:
+                received.append(message)
+                if len(received) == 1:
                     future.set_result(None)
                 queue.task_done()
-        self.bus.add_consumer(messagebus.SourceMessage, consumer)
+        self.bus.add_consumer(messages.SourceMessage, consumer)
 
         sender = self.make_sender("""
             videotestsrc ! {} ! mux.
         """.format(self.config.video_caps.to_string()))
         sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 1)
-        self.assertIsInstance(messages[0], messagebus.VideoSourceAdded)
-        self.assertEqual(messages[0].channel, "c0.video_0")
+        self.assertEqual(len(received), 1)
+        self.assertIsInstance(received[0], messages.VideoSourceAdded)
+        self.assertEqual(received[0].channel, "c0.video_0")
 
-        messages.clear()
+        received.clear()
         future = self.loop.create_future()
         sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 1)
-        self.assertIsInstance(messages[0], messagebus.VideoSourceRemoved)
-        self.assertEqual(messages[0].channel, "c0.video_0")
+        self.assertEqual(len(received), 1)
+        self.assertIsInstance(received[0], messages.VideoSourceRemoved)
+        self.assertEqual(received[0].channel, "c0.video_0")
 
     def test_send_audio(self):
-        messages = []
+        received = []
         future = self.loop.create_future()
         async def consumer(queue):
             while True:
                 message = await queue.get()
-                messages.append(message)
-                if len(messages) == 1:
+                received.append(message)
+                if len(received) == 1:
                     future.set_result(None)
                 queue.task_done()
-        self.bus.add_consumer(messagebus.SourceMessage, consumer)
+        self.bus.add_consumer(messages.SourceMessage, consumer)
 
         sender = self.make_sender("""
             audiotestsrc freq=440 ! {} ! mux.
         """.format(self.config.audio_caps.to_string()))
         sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 1)
-        self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)
-        self.assertEqual(messages[0].channel, "c0.audio_0")
+        self.assertEqual(len(received), 1)
+        self.assertIsInstance(received[0], messages.AudioSourceAdded)
+        self.assertEqual(received[0].channel, "c0.audio_0")
 
-        messages.clear()
+        received.clear()
         future = self.loop.create_future()
         sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 1)
-        self.assertIsInstance(messages[0], messagebus.AudioSourceRemoved)
-        self.assertEqual(messages[0].channel, "c0.audio_0")
+        self.assertEqual(len(received), 1)
+        self.assertIsInstance(received[0], messages.AudioSourceRemoved)
+        self.assertEqual(received[0].channel, "c0.audio_0")
 
     def test_send_two_audio_streams(self):
-        messages = []
+        received = []
         future = self.loop.create_future()
         async def consumer(queue):
             while True:
                 message = await queue.get()
-                messages.append(message)
-                if len(messages) == 2:
+                received.append(message)
+                if len(received) == 2:
                     future.set_result(None)
                 queue.task_done()
-        self.bus.add_consumer(messagebus.SourceMessage, consumer)
+        self.bus.add_consumer(messages.SourceMessage, consumer)
 
         sender = self.make_sender("""
             audiotestsrc freq=440 ! {} ! mux.
@@ -115,34 +116,34 @@ host = 127.0.0.1
                    self.config.audio_caps.to_string()))
         sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 2)
-        self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)
-        self.assertEqual(messages[0].channel, "c0.audio_0")
-        self.assertIsInstance(messages[1], messagebus.AudioSourceAdded)
-        self.assertEqual(messages[1].channel, "c0.audio_1")
+        self.assertEqual(len(received), 2)
+        self.assertIsInstance(received[0], messages.AudioSourceAdded)
+        self.assertEqual(received[0].channel, "c0.audio_0")
+        self.assertIsInstance(received[1], messages.AudioSourceAdded)
+        self.assertEqual(received[1].channel, "c0.audio_1")
 
-        messages.clear()
+        received.clear()
         future = self.loop.create_future()
         sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 2)
-        self.assertIsInstance(messages[0], messagebus.AudioSourceRemoved)
-        self.assertEqual(messages[0].channel, "c0.audio_0")
-        self.assertIsInstance(messages[1], messagebus.AudioSourceRemoved)
-        self.assertEqual(messages[1].channel, "c0.audio_1")
+        self.assertEqual(len(received), 2)
+        self.assertIsInstance(received[0], messages.AudioSourceRemoved)
+        self.assertEqual(received[0].channel, "c0.audio_0")
+        self.assertIsInstance(received[1], messages.AudioSourceRemoved)
+        self.assertEqual(received[1].channel, "c0.audio_1")
 
     def test_send_audio_and_video(self):
-        messages = []
+        received = []
         future = self.loop.create_future()
         async def consumer(queue):
             while True:
                 message = await queue.get()
-                messages.append(message)
-                if len(messages) == 2:
+                received.append(message)
+                if len(received) == 2:
                     future.set_result(None)
                 queue.task_done()
-        self.bus.add_consumer(messagebus.SourceMessage, consumer)
+        self.bus.add_consumer(messages.SourceMessage, consumer)
 
         sender = self.make_sender("""
             audiotestsrc freq=440 ! {} ! mux.
@@ -151,19 +152,19 @@ host = 127.0.0.1
                    self.config.video_caps.to_string()))
         sender.set_state(Gst.State.PLAYING)
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 2)
-        self.assertIsInstance(messages[0], messagebus.AudioSourceAdded)
-        self.assertEqual(messages[0].channel, "c0.audio_0")
-        self.assertIsInstance(messages[1], messagebus.VideoSourceAdded)
-        self.assertEqual(messages[1].channel, "c0.video_0")
+        self.assertEqual(len(received), 2)
+        self.assertIsInstance(received[0], messages.AudioSourceAdded)
+        self.assertEqual(received[0].channel, "c0.audio_0")
+        self.assertIsInstance(received[1], messages.VideoSourceAdded)
+        self.assertEqual(received[1].channel, "c0.video_0")
 
-        messages.clear()
+        received.clear()
         future = self.loop.create_future()
         sender.set_state(Gst.State.NULL)
 
         self.loop.run_until_complete(future)
-        self.assertEqual(len(messages), 2)
-        self.assertIsInstance(messages[0], messagebus.AudioSourceRemoved)
-        self.assertEqual(messages[0].channel, "c0.audio_0")
-        self.assertIsInstance(messages[1], messagebus.VideoSourceRemoved)
-        self.assertEqual(messages[1].channel, "c0.video_0")
+        self.assertEqual(len(received), 2)
+        self.assertIsInstance(received[0], messages.AudioSourceRemoved)
+        self.assertEqual(received[0].channel, "c0.audio_0")
+        self.assertIsInstance(received[1], messages.VideoSourceRemoved)
+        self.assertEqual(received[1].channel, "c0.video_0")

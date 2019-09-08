@@ -1,6 +1,7 @@
 from gi.repository import Gst
 
-from . import config, messagebus, utils
+from . import config, utils
+from ..common import messages
 
 
 class VideoMix:
@@ -9,8 +10,8 @@ class VideoMix:
         self._loop = loop
         self._config = config
         self._bus = bus
-        bus.add_consumer((messagebus.VideoSourceMessage,
-                          messagebus.SetVideoSource), self.handle_message)
+        bus.add_consumer((messages.VideoSourceMessage,
+                          messages.SetVideoSource), self.handle_message)
         self._sources = {}
         self._composite_mode = "fullscreen"
         self._source_a = None
@@ -47,12 +48,12 @@ class VideoMix:
     async def handle_message(self, queue):
         while True:
             message = await queue.get()
-            if isinstance(message, messagebus.VideoSourceAdded):
+            if isinstance(message, messages.VideoSourceAdded):
                 source = VideoMixSource(
                     self._config, self._pipeline, message.channel,
                     self._mixer, self._loop)
                 self._sources[message.channel] = source
-            elif isinstance(message, messagebus.VideoSourceRemoved):
+            elif isinstance(message, messages.VideoSourceRemoved):
                 source = self._sources.pop(message.channel, None)
                 if source is not None:
                     if self._source_a == source.channel:
@@ -60,7 +61,7 @@ class VideoMix:
                     if self._source_b == source.channel:
                         self._source_b = None
                     await source.close()
-            elif isinstance(message, messagebus.SetVideoSource):
+            elif isinstance(message, messages.SetVideoSource):
                 self.handle_source_change(message)
             queue.task_done()
             await self._bus.post(self.make_video_mix_status())
@@ -108,7 +109,7 @@ class VideoMix:
         self._source_b = new_source_b
 
     def make_video_mix_status(self):
-        return messagebus.VideoMixStatus(
+        return messages.VideoMixStatus(
             self._composite_mode, self._source_a, self._source_b)
 
 

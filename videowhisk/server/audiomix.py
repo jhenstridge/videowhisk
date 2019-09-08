@@ -1,6 +1,7 @@
 from gi.repository import Gst
 
-from . import messagebus, utils
+from . import utils
+from ..common import messages
 
 class AudioMix:
     def __init__(self, config, bus, loop):
@@ -8,8 +9,8 @@ class AudioMix:
         self._loop = loop
         self._config = config
         self._bus = bus
-        bus.add_consumer((messagebus.AudioSourceMessage,
-                          messagebus.SetAudioSource), self.handle_message)
+        bus.add_consumer((messages.AudioSourceMessage,
+                          messages.SetAudioSource), self.handle_message)
         self._sources = {}
         self._active_source = None
         self.make_pipeline()
@@ -44,18 +45,18 @@ class AudioMix:
     async def handle_message(self, queue):
         while True:
             message = await queue.get()
-            if isinstance(message, messagebus.AudioSourceAdded):
+            if isinstance(message, messages.AudioSourceAdded):
                 source = AudioMixSource(
                     self._config, self._pipeline, message.channel,
                     self._mixer, self._loop)
                 self._sources[message.channel] = source
-            elif isinstance(message, messagebus.AudioSourceRemoved):
+            elif isinstance(message, messages.AudioSourceRemoved):
                 source = self._sources.pop(message.channel, None)
                 if source is not None:
                     await source.close()
                     if self._active_source == source.channel:
                         self._active_source = None
-            elif isinstance(message, messagebus.SetAudioSource):
+            elif isinstance(message, messages.SetAudioSource):
                 if self._active_source != message.active_source and (
                         message.active_source is None or
                         message.active_source in self._sources):
@@ -71,7 +72,7 @@ class AudioMix:
     def make_audio_mix_status(self):
         volumes = {source.channel: source.volume
                    for source in self._sources.values()}
-        return messagebus.AudioMixStatus(self._active_source, volumes)
+        return messages.AudioMixStatus(self._active_source, volumes)
 
 
 class AudioMixSource:

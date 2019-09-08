@@ -4,7 +4,8 @@ import socket
 
 from gi.repository import GLib, Gst
 
-from . import messagebus, utils
+from . import utils
+from ..common import messages
 
 
 log = logging.getLogger(__name__)
@@ -72,10 +73,10 @@ class AVSourceConnection:
         self._sock.close()
         self._server._connection_closed(self)
         for channel in self.audio_sources:
-            await self._server._bus.post(messagebus.AudioSourceRemoved(
+            await self._server._bus.post(messages.AudioSourceRemoved(
                 channel, self._address))
         for channel in self.video_sources:
-            await self._server._bus.post(messagebus.VideoSourceRemoved(
+            await self._server._bus.post(messages.VideoSourceRemoved(
                 channel, self._address))
 
     def make_pipeline(self):
@@ -160,10 +161,10 @@ class AVSourceConnection:
 
     async def audio_source_added(self, channel):
         self.audio_sources.append(channel)
-        await self._server._bus.post(messagebus.AudioSourceAdded(
+        await self._server._bus.post(messages.AudioSourceAdded(
             channel, self._address))
 
     async def video_source_added(self, channel):
         self.video_sources.append(channel)
-        await self._server._bus.post(messagebus.VideoSourceAdded(
+        await self._server._bus.post(messages.VideoSourceAdded(
             channel, self._address))

@@ -8,7 +8,8 @@ try:
 except ImportError:
     from http_parser.pyparser import HttpParser
 
-from . import messagebus, utils
+from . import utils
+from ..common import messages
 
 
 log = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class AVOutputServer:
         self._loop = loop
         self._closed = False
         self._config = config
-        bus.add_consumer(messagebus.SourceMessage, self.handle_message)
+        bus.add_consumer(messages.SourceMessage, self.handle_message)
         self._connections = {}
         self._monitors = {}
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -60,18 +61,18 @@ class AVOutputServer:
     async def handle_message(self, queue):
         while True:
             message = await queue.get()
-            if isinstance(message, messagebus.AudioSourceAdded):
+            if isinstance(message, messages.AudioSourceAdded):
                 log.info("Adding audio monitor for %s", message.channel)
                 monitor = AudioMonitor(message.channel, self)
                 self._monitors[message.channel] = monitor
                 monitor.start()
-            elif isinstance(message, messagebus.VideoSourceAdded):
+            elif isinstance(message, messages.VideoSourceAdded):
                 log.info("Adding video monitor for %s", message.channel)
                 monitor = VideoMonitor(message.channel, self)
                 self._monitors[message.channel] = monitor
                 monitor.start()
-            elif isinstance(message, (messagebus.AudioSourceRemoved,
-                                      messagebus.VideoSourceRemoved)):
+            elif isinstance(message, (messages.AudioSourceRemoved,
+                                      messages.VideoSourceRemoved)):
                 log.info("Removing monitor for %s", message.channel)
                 monitor = self._monitors.pop(message.channel, None)
                 if monitor is not None:

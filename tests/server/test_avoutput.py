@@ -6,6 +6,7 @@ import aiohttp
 import asyncio_glib
 from gi.repository import Gst
 
+from videowhisk.common import messages
 from videowhisk.server import avoutput, config, messagebus
 
 
@@ -36,7 +37,7 @@ host = 127.0.0.1
         """.format(self.config.audio_caps.to_string()))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
-        self.loop.create_task(self.bus.post(messagebus.AudioSourceAdded("source.audio", "127.0.0.1")))
+        self.loop.create_task(self.bus.post(messages.AudioSourceAdded("source.audio", "127.0.0.1")))
 
     def make_video_source(self):
         pipeline = Gst.parse_launch("""
@@ -46,7 +47,7 @@ host = 127.0.0.1
         """.format(self.config.video_caps.to_string()))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
-        self.loop.create_task(self.bus.post(messagebus.VideoSourceAdded("source.video", "127.0.0.1")))
+        self.loop.create_task(self.bus.post(messages.VideoSourceAdded("source.video", "127.0.0.1")))
 
     def test_audio(self):
         self.make_audio_source()

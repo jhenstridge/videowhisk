@@ -5,6 +5,7 @@ import unittest
 import asyncio_glib
 from gi.repository import Gst
 
+from videowhisk.common import messages
 from videowhisk.server import videomix, config, messagebus
 
 
@@ -31,7 +32,7 @@ class VideoMixTests(unittest.TestCase):
         """.format(self.config.video_caps.to_string(), channel))
         pipeline.set_state(Gst.State.PLAYING)
         self.addCleanup(pipeline.set_state, Gst.State.NULL)
-        self.loop.create_task(self.bus.post(messagebus.VideoSourceAdded(channel, "127.0.0.1")))
+        self.loop.create_task(self.bus.post(messages.VideoSourceAdded(channel, "127.0.0.1")))
 
     def test_add_remove_sources(self):
         future = self.loop.create_future()
@@ -40,7 +41,7 @@ class VideoMixTests(unittest.TestCase):
                 message = await queue.get()
                 future.set_result(message)
                 queue.task_done()
-        self.bus.add_consumer(messagebus.VideoMixStatus, consumer)
+        self.bus.add_consumer(messages.VideoMixStatus, consumer)
 
         self.make_video_source()
         self.loop.run_until_complete(future)
@@ -51,7 +52,7 @@ class VideoMixTests(unittest.TestCase):
         self.assertIn("source.video", self.vmix._sources)
 
         future = self.loop.create_future()
-        self.loop.create_task(self.bus.post(messagebus.VideoSourceRemoved("source.video", "127.0.0.1")))
+        self.loop.create_task(self.bus.post(messages.VideoSourceRemoved("source.video", "127.0.0.1")))
         self.loop.run_until_complete(future)
         message = future.result()
         self.assertNotIn("source.video", self.vmix._sources)
@@ -63,7 +64,7 @@ class VideoMixTests(unittest.TestCase):
                 message = await queue.get()
                 future.set_result(message)
                 queue.task_done()
-        self.bus.add_consumer(messagebus.VideoMixStatus, consumer)
+        self.bus.add_consumer(messages.VideoMixStatus, consumer)
 
         # Create sources
         self.make_video_source("source.video1")
@@ -81,7 +82,7 @@ class VideoMixTests(unittest.TestCase):
 
         # Reconfigure the video mixer
         future = self.loop.create_future()
-        self.loop.create_task(self.bus.post(messagebus.SetVideoSource(
+        self.loop.create_task(self.bus.post(messages.SetVideoSource(
             "fullscreen", "source.video1", None)))
         self.loop.run_until_complete(future)
         message = future.result()
@@ -102,7 +103,7 @@ class VideoMixTests(unittest.TestCase):
 
         # Reconfigure video mixer into PIP mode
         future = self.loop.create_future()
-        self.loop.create_task(self.bus.post(messagebus.SetVideoSource(
+        self.loop.create_task(self.bus.post(messages.SetVideoSource(
             "picture-in-picture", "source.video2", "source.video3")))
         self.loop.run_until_complete(future)
         message = future.result()
