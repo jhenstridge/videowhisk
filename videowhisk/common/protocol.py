@@ -3,6 +3,8 @@ import json
 import logging
 import struct
 
+from . import messages
+
 
 log = logging.getLogger(__name__)
 
@@ -35,12 +37,7 @@ class ControlProtocol(asyncio.Protocol):
             if self.have_length:
                 if len(self.buffered) < self.message_length:
                     break
-                try:
-                    msg = json.loads(self.buffered[:self.message_length])
-                except json.JSONDecodeError:
-                    log.exception("Error decoding message")
-                else:
-                    self.message_received(msg)
+                self._decode_message(self.buffered[:self.message_length])
                 self.have_length = False
                 self.buffered = self.buffered[self.message_length:]
                 self.message_length = 0
@@ -51,10 +48,18 @@ class ControlProtocol(asyncio.Protocol):
                 self.buffered = self.buffered[4:]
                 self.have_length = True
 
+    def _decode_message(self, data):
+        try:
+            msg = messages.deserialise(json.loads(data))
+        except Exception:
+            log.exception("Error decoding message:")
+            return
+        self.message_received(msg)
+
     def message_received(self, message):
         raise NotImplementedError
 
     def send_message(self, message):
-        encoded = json.dumps(message).encode("UTF-8")
+        encoded = json.dumps(message.serialise()).encode("UTF-8")
         self.transport.write(struct.pack(">I", len(encoded)))
         self.transport.write(encoded)

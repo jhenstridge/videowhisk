@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from videowhisk.common import protocol
+from videowhisk.common import messages, protocol
 
 
 class TestClientProtocol(protocol.ControlProtocol):
@@ -23,8 +23,8 @@ class TestServerProtocol(protocol.ControlProtocol):
 
     def connection_made(self, transport):
         super().connection_made(transport)
-        self.send_message({"key": "value"})
-        self.send_message([1, 2, 3, 4])
+        self.send_message(messages.AudioMixStatus("active", {}))
+        self.send_message(messages.VideoMixStatus("mode", "a", "b"))
         self.transport.close()
 
 
@@ -52,8 +52,14 @@ class ProtocolTests(unittest.TestCase):
 
         protocol = self.loop.run_until_complete(client())
         self.assertEqual(len(protocol.received_messages), 2)
-        self.assertEqual(protocol.received_messages[0], {"key": "value"})
-        self.assertEqual(protocol.received_messages[1], [1, 2, 3, 4])
+        self.assertIsInstance(protocol.received_messages[0],
+                              messages.AudioMixStatus)
+        self.assertEqual(protocol.received_messages[0].active_source, "active")
+        self.assertIsInstance(protocol.received_messages[1],
+                              messages.VideoMixStatus)
+        self.assertEqual(protocol.received_messages[1].composite_mode, "mode")
+        self.assertEqual(protocol.received_messages[1].source_a, "a")
+        self.assertEqual(protocol.received_messages[1].source_b, "b")
 
         server.close()
         self.loop.run_until_complete(server.wait_closed())
