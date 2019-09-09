@@ -1,5 +1,6 @@
 import json
 
+
 class Message:
     __slots__ = ()
 
@@ -145,3 +146,22 @@ class SetVideoSource(Message):
     def deserialise(cls, data):
         assert data["type"] == cls.message_type
         return cls(data["composite_mode"], data["source_a"], data["source_b"])
+
+
+_message_class_by_type = {
+    cls.message_type: cls for cls in [
+        AudioSourceAdded,
+        AudioSourceRemoved,
+        VideoSourceAdded,
+        VideoSourceRemoved,
+        AudioMixStatus,
+        SetAudioSource,
+        VideoMixStatus,
+        SetVideoSource,
+    ]}
+
+
+def deserialise(data):
+    type = data.get("type")
+    cls = _message_class_by_type[type]
+    return cls.deserialise(data)
