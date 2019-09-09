@@ -40,7 +40,6 @@ class ProtocolTests(unittest.TestCase):
         server = self.loop.run_until_complete(self.loop.create_server(
             TestServerProtocol, "127.0.0.1", 0))
         self.addCleanup(server.close)
-        self.loop.run_until_complete(server.start_serving())
         port = server.sockets[0].getsockname()[1]
 
         async def client():
