@@ -41,7 +41,7 @@ class AVOutputServer:
         if self._closed:
             return
         self._closed = True
-        utils.cancel_task(self._run_task)
+        await utils.cancel_task(self._run_task)
         self._sock.close()
 
         for conn in list(self._connections.values()):

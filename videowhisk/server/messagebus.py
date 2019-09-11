@@ -20,7 +20,7 @@ class MessageBus:
             return
         self._closed = True
         await self._post_queue.join()
-        utils.cancel_task(self._run_task)
+        await utils.cancel_task(self._run_task)
         for c in self._consumers:
             await c.close()
 
@@ -59,4 +59,4 @@ class Consumer:
     async def close(self):
         self.closed = True
         await self.queue.join()
-        utils.cancel_task(self.task)
+        await utils.cancel_task(self.task)
