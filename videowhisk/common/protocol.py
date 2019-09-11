@@ -26,10 +26,6 @@ class ControlProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
 
-    def connection_lost(self, exc):
-        if exc is not None:
-            log.warning(...)
-
     def data_received(self, data):
         """Decode messages received over the wire."""
         self.buffered += data
