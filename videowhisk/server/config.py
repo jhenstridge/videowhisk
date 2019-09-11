@@ -89,6 +89,8 @@ class Config:
         if not host:
             # XXX: consider IPV6
             host = "0.0.0.0"
+        self.control_addr = (host, server.getint("control_port"))
+        self.clock_addr = (host, server.getint("clock_port"))
         self.avsource_addr = (host, server.getint("avsource_port"))
         self.avoutput_addr = (host, server.getint("avoutput_port"))
 

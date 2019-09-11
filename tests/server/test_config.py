@@ -30,6 +30,8 @@ class ConfigTests(unittest.TestCase):
                          Gst.Fraction(1, 1))
         self.assertEqual(struct.get_value("interlace-mode"), "progressive")
 
+        self.assertEqual(cfg.control_addr, ("0.0.0.0", 0))
+        self.assertEqual(cfg.clock_addr, ("0.0.0.0", 0))
         self.assertEqual(cfg.avsource_addr, ("0.0.0.0", 0))
         self.assertEqual(cfg.avoutput_addr, ("0.0.0.0", 0))
 
@@ -70,10 +72,13 @@ class ConfigTests(unittest.TestCase):
 [server]
 video_caps = video/x-raw,format=I420,width=100,height=100,framerate=25/1,pixel-aspect-ratio=1/1,interlace-mode=progressive
 host = 127.0.0.1
+control_port = 2000
 """)
         struct = cfg.video_caps.get_structure(0)
         self.assertEqual(struct.get_value("width"), 100)
         self.assertEqual(struct.get_value("height"), 100)
 
+        self.assertEqual(cfg.control_addr, ("127.0.0.1", 2000))
+        self.assertEqual(cfg.clock_addr, ("127.0.0.1", 0))
         self.assertEqual(cfg.avsource_addr, ("127.0.0.1", 0))
         self.assertEqual(cfg.avoutput_addr, ("127.0.0.1", 0))
