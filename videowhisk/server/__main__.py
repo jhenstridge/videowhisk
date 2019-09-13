@@ -20,8 +20,9 @@ loop.add_signal_handler(signal.SIGINT, loop.stop)
 config = config.Config()
 server = server.Server(config, loop)
 
-print("AVSourceServer on port {}".format(server.sources.local_addr()[1]))
-print("AVOutputServer on port {}".format(server.outputs.local_addr()[1]))
+print("ControlServer on port {}".format(server.control.local_port()))
+print("AVSourceServer on port {}".format(server.sources.local_port()))
+print("AVOutputServer on port {}".format(server.outputs.local_port()))
 
 loop.run_forever()
 loop.run_until_complete(server.close())
