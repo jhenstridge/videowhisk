@@ -114,6 +114,7 @@ host = 127.0.0.1
     def test_make_initial_messages(self):
         transport = asyncio.Transport({"sockname": ("myhostname", 4242)})
         msgs = self.server.make_initial_messages(transport)
+        self.assertEqual(len(msgs), 3)
         mixercfg = msgs[0]
         self.assertIsInstance(mixercfg, messages.MixerConfig)
         self.assertEqual(mixercfg.control_addr,
@@ -130,3 +131,5 @@ host = 127.0.0.1
         self.assertEqual(mixercfg.audio_caps,
                          self.config.audio_caps.to_string())
 
+        self.assertIsInstance(msgs[1], messages.VideoMixStatus)
+        self.assertIsInstance(msgs[2], messages.AudioMixStatus)
