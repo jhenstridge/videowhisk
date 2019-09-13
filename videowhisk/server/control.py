@@ -37,9 +37,10 @@ class ControlServerProtocol(protocol.ControlProtocol):
 
 class ControlServer:
 
-    def __init__(self, config, bus, loop):
+    def __init__(self, config, bus, initial_message_factory, loop):
         self._config = config
         self._bus = bus
+        self._initial_message_factory = initial_message_factory
         self._loop = loop
         self._closed = False
 
@@ -84,7 +85,9 @@ class ControlServer:
             queue.task_done()
 
     def send_initial_messages(self, protocol):
-        pass
+        messages = self._initial_message_factory(protocol.transport)
+        for message in messages:
+            protocol.send_message(message)
 
     def connection_lost(self, protocol):
         self._connections.discard(protocol)

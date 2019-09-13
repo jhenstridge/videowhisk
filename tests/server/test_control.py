@@ -30,13 +30,17 @@ class ControlTests(unittest.TestCase):
 [server]
 host = 127.0.0.1
 """)
-        self.server = control.ControlServer(self.config, self.bus, self.loop)
+        self.server = control.ControlServer(self.config, self.bus, self.create_initial_messages, self.loop)
         self.loop.run_until_complete(self.server._start_server_task)
+        self.initial_messages = []
 
     def tearDown(self):
         self.loop.run_until_complete(self.server.close())
         self.loop.run_until_complete(self.bus.close())
         self.loop.close()
+
+    def create_initial_messages(self, transport):
+        return self.initial_messages
 
     def test_receive_from_client(self):
         received = []
@@ -79,9 +83,31 @@ host = 127.0.0.1
         self.loop.run_until_complete(self.bus.post(
             messages.VideoSourceAdded("channel", ("hostname", 42))))
         self.loop.run_until_complete(self.server.close())
-
         self.loop.run_until_complete(disconnect_future)
+
         self.assertEqual(len(protocol.received), 1)
         self.assertIsInstance(protocol.received[0], messages.VideoSourceAdded)
         self.assertEqual(protocol.received[0].channel, "channel")
         self.assertEqual(protocol.received[0].remote_addr, ("hostname", 42))
+
+    def test_sends_initial_messages(self):
+        self.initial_messages = [
+            messages.VideoSourceAdded("v1", ("host", 42)),
+            messages.VideoSourceAdded("v2", ("host", 43)),
+            messages.VideoMixStatus("picture-in-picture", "v1", "v2"),
+        ]
+        disconnect_future = self.loop.create_future()
+        local_port = self.loop.run_until_complete(self.server.local_port())
+        transport, protocol = self.loop.run_until_complete(
+            self.loop.create_connection(
+                lambda: TestClientProtocol(disconnect_future),
+                '127.0.0.1', local_port))
+        self.addCleanup(transport.close)
+
+        self.loop.run_until_complete(self.server.close())
+        self.loop.run_until_complete(disconnect_future)
+
+        self.assertEqual(len(protocol.received), 3)
+        self.assertIsInstance(protocol.received[0], messages.VideoSourceAdded)
+        self.assertIsInstance(protocol.received[1], messages.VideoSourceAdded)
+        self.assertIsInstance(protocol.received[2], messages.VideoMixStatus)
