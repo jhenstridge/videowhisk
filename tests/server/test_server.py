@@ -125,7 +125,8 @@ host = 127.0.0.1
         self.assertEqual(mixercfg.avoutput_uri,
                          "http://myhostname:{}".format(
                              self.server.outputs.local_port()))
-        self.assertEqual(mixercfg.composite_modes, self.config.composite_modes)
+        self.assertEqual(mixercfg.composite_modes,
+                         sorted(self.config.composite_modes.keys()))
         self.assertEqual(mixercfg.video_caps,
                          self.config.video_caps.to_string())
         self.assertEqual(mixercfg.audio_caps,

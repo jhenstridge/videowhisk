@@ -36,7 +36,7 @@ class Server:
                 avsource_addr=(local_addr, self.sources.local_port()),
                 avoutput_uri="http://{}:{}".format(
                     local_addr, self.outputs.local_port()),
-                composite_modes=self.config.composite_modes,
+                composite_modes=sorted(self.config.composite_modes.keys()),
                 video_caps=self.config.video_caps.to_string(),
                 audio_caps=self.config.audio_caps.to_string())
         ]
