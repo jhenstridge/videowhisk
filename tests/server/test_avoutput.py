@@ -57,7 +57,7 @@ host = 127.0.0.1
             nonlocal headers, body
             async with aiohttp.ClientSession() as session:
                 url = "http://127.0.0.1:{}/source.audio".format(
-                    self.server.local_addr()[1])
+                    self.server.local_port())
                 async with session.get(url) as response:
                     headers = response.headers
                     body = await response.content.read(100)
@@ -73,7 +73,7 @@ host = 127.0.0.1
             nonlocal headers, body
             async with aiohttp.ClientSession() as session:
                 url = "http://127.0.0.1:{}/source.video".format(
-                    self.server.local_addr()[1])
+                    self.server.local_port())
                 async with session.get(url) as response:
                     headers = response.headers
                     body = await response.content.read(100)

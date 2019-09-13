@@ -31,7 +31,6 @@ class ControlTests(unittest.TestCase):
 host = 127.0.0.1
 """)
         self.server = control.ControlServer(self.config, self.bus, self.create_initial_messages, self.loop)
-        self.loop.run_until_complete(self.server._start_server_task)
         self.initial_messages = []
 
     def tearDown(self):
@@ -55,11 +54,10 @@ host = 127.0.0.1
         self.bus.add_consumer(messages.SetVideoSource, consumer)
 
         disconnect_future = self.loop.create_future()
-        local_port = self.loop.run_until_complete(self.server.local_port())
         transport, protocol = self.loop.run_until_complete(
             self.loop.create_connection(
                 lambda: TestClientProtocol(disconnect_future),
-                '127.0.0.1', local_port))
+                '127.0.0.1', self.server.local_port()))
         self.addCleanup(transport.close)
 
         protocol.send_message(messages.SetVideoSource("fullscreen", "a", "b"))
@@ -73,11 +71,10 @@ host = 127.0.0.1
 
     def test_send_to_client(self):
         disconnect_future = self.loop.create_future()
-        local_port = self.loop.run_until_complete(self.server.local_port())
         transport, protocol = self.loop.run_until_complete(
             self.loop.create_connection(
                 lambda: TestClientProtocol(disconnect_future),
-                '127.0.0.1', local_port))
+                '127.0.0.1', self.server.local_port()))
         self.addCleanup(transport.close)
 
         self.loop.run_until_complete(self.bus.post(
@@ -97,11 +94,10 @@ host = 127.0.0.1
             messages.VideoMixStatus("picture-in-picture", "v1", "v2"),
         ]
         disconnect_future = self.loop.create_future()
-        local_port = self.loop.run_until_complete(self.server.local_port())
         transport, protocol = self.loop.run_until_complete(
             self.loop.create_connection(
                 lambda: TestClientProtocol(disconnect_future),
-                '127.0.0.1', local_port))
+                '127.0.0.1', self.server.local_port()))
         self.addCleanup(transport.close)
 
         self.loop.run_until_complete(self.server.close())

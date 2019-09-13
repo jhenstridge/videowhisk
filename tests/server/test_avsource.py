@@ -28,7 +28,7 @@ host = 127.0.0.1
         self.loop.close()
 
     def make_sender(self, source):
-        port = self.server.local_addr()[1]
+        port = self.server.local_port()
         pipeline = Gst.parse_launch("""
             {}
             matroskamux name=mux !

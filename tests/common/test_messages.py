@@ -8,16 +8,16 @@ class MessagesTest(unittest.TestCase):
     def test_mixer_config(self):
         msg = messages.MixerConfig(
             ("control", 42), ("clock", 43), ("avsource", 44),
-            ["fullscreen", "picture-in-picture"], "video_caps", "audio_caps",
-            "http://output.uri")
+            "http://output.uri", ["fullscreen", "picture-in-picture"],
+            "video_caps", "audio_caps")
         self.assertEqual(msg.control_addr, ("control", 42))
         self.assertEqual(msg.clock_addr, ("clock", 43))
         self.assertEqual(msg.avsource_addr, ("avsource", 44))
+        self.assertEqual(msg.avoutput_uri, "http://output.uri")
         self.assertEqual(msg.composite_modes,
                          ["fullscreen", "picture-in-picture"])
         self.assertEqual(msg.video_caps, "video_caps")
         self.assertEqual(msg.audio_caps, "audio_caps")
-        self.assertEqual(msg.output_uri, "http://output.uri")
 
         data = msg.serialise()
         msg2 = messages.deserialise(data)
@@ -25,11 +25,11 @@ class MessagesTest(unittest.TestCase):
         self.assertEqual(msg2.control_addr, ("control", 42))
         self.assertEqual(msg2.clock_addr, ("clock", 43))
         self.assertEqual(msg2.avsource_addr, ("avsource", 44))
+        self.assertEqual(msg2.avoutput_uri, "http://output.uri")
         self.assertEqual(msg2.composite_modes,
                          ["fullscreen", "picture-in-picture"])
         self.assertEqual(msg2.video_caps, "video_caps")
         self.assertEqual(msg2.audio_caps, "audio_caps")
-        self.assertEqual(msg2.output_uri, "http://output.uri")
 
     def _test_source_message(self, cls):
         msg = cls("channel", ("address", 42))

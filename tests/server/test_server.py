@@ -27,7 +27,7 @@ host = 127.0.0.1
         self.loop.close()
 
     def make_sender(self, source):
-        port = self.server.sources.local_addr()[1]
+        port = self.server.sources.local_port()
         pipeline = Gst.parse_launch("""
             {}
             matroskamux name=mux !
@@ -96,7 +96,7 @@ host = 127.0.0.1
         vmix_future.result()
 
         output_url = "http://127.0.0.1:{}/output".format(
-            self.server.outputs.local_addr()[1])
+            self.server.outputs.local_port())
 
         # Try to connect to the muxed output
         headers = None
@@ -110,3 +110,23 @@ host = 127.0.0.1
         self.loop.run_until_complete(make_request())
         self.assertEqual(headers["Content-Type"], "video/x-matroska")
         self.assertEqual(body[:4], b"\x1A\x45\xDF\xA3")
+
+    def test_make_initial_messages(self):
+        transport = asyncio.Transport({"sockname": ("myhostname", 4242)})
+        msgs = self.server.make_initial_messages(transport)
+        mixercfg = msgs[0]
+        self.assertIsInstance(mixercfg, messages.MixerConfig)
+        self.assertEqual(mixercfg.control_addr,
+                         ("myhostname", self.server.control.local_port()))
+        self.assertEqual(mixercfg.clock_addr, ("myhostname", 0))
+        self.assertEqual(mixercfg.avsource_addr,
+                         ("myhostname", self.server.sources.local_port()))
+        self.assertEqual(mixercfg.avoutput_uri,
+                         "http://myhostname:{}".format(
+                             self.server.outputs.local_port()))
+        self.assertEqual(mixercfg.composite_modes, self.config.composite_modes)
+        self.assertEqual(mixercfg.video_caps,
+                         self.config.video_caps.to_string())
+        self.assertEqual(mixercfg.audio_caps,
+                         self.config.audio_caps.to_string())
+

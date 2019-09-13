@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from . import messagebus, utils
+from . import messagebus
 from ..common import messages, protocol
 
 
@@ -47,9 +47,9 @@ class ControlServer:
         bus.add_consumer(messages.Message, self.handle_message)
 
         self._connections = set()
-        self._local_port = 0
-        self._server = None
-        self._start_server_task = self._loop.create_task(self.start_server())
+        hostname, port = config.control_addr
+        self._server = loop.run_until_complete(loop.create_server(
+            self.make_protocol, hostname, port))
 
     async def start_server(self):
         hostname, port = self._config.control_addr
@@ -60,16 +60,13 @@ class ControlServer:
         if self._closed:
             return
         self._closed = True
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
-        await utils.cancel_task(self._start_server_task)
+        self._server.close()
+        await self._server.wait_closed()
         for protocol in list(self._connections):
             if protocol.transport is not None:
                 protocol.transport.close()
 
-    async def local_port(self):
-        await self._start_server_task
+    def local_port(self):
         return self._server.sockets[0].getsockname()[1]
 
     def make_protocol(self):

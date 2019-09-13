@@ -35,8 +35,8 @@ class AVSourceServer:
         for conn in list(self._connections.values()):
             await conn.close()
 
-    def local_addr(self):
-        return self._sock.getsockname()
+    def local_port(self):
+        return self._sock.getsockname()[1]
 
     async def run(self):
         counter = 0

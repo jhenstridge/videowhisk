@@ -49,8 +49,8 @@ class AVOutputServer:
         for monitor in list(self._monitors.values()):
             await monitor.close()
 
-    def local_addr(self):
-        return self._sock.getsockname()
+    def local_port(self):
+        return self._sock.getsockname()[1]
 
     async def run(self):
         while True:

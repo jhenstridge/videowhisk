@@ -16,20 +16,19 @@ class Message:
 
 class MixerConfig(Message):
     __slots__ = ("control_addr", "clock_addr", "avsource_addr",
-                 "composite_modes", "video_caps", "audio_caps",
-                 "output_uri")
+                 "avoutput_uri", "composite_modes", "video_caps",
+                 "audio_caps")
     message_type = "mixer-config"
 
     def __init__(self, control_addr, clock_addr, avsource_addr,
-                 composite_modes, video_caps, audio_caps,
-                 output_uri):
+                 avoutput_uri, composite_modes, video_caps, audio_caps):
         self.control_addr = control_addr
         self.clock_addr = clock_addr
         self.avsource_addr = avsource_addr
+        self.avoutput_uri = avoutput_uri
         self.composite_modes = composite_modes
         self.video_caps = video_caps
         self.audio_caps = audio_caps
-        self.output_uri = output_uri
 
     def serialise(self):
         return dict(
@@ -37,19 +36,19 @@ class MixerConfig(Message):
             control_addr=self.control_addr,
             clock_addr=self.clock_addr,
             avsource_addr=self.avsource_addr,
+            avoutput_uri=self.avoutput_uri,
             composite_modes=self.composite_modes,
             video_caps=self.video_caps,
             audio_caps=self.audio_caps,
-            output_uri=self.output_uri,
         )
 
     @classmethod
     def deserialise(cls, data):
         assert data["type"] == cls.message_type
         return cls(tuple(data["control_addr"]), tuple(data["clock_addr"]),
-                   tuple(data["avsource_addr"]), data["composite_modes"],
-                   data["video_caps"], data["audio_caps"],
-                   data["output_uri"])
+                   tuple(data["avsource_addr"]), data["avoutput_uri"],
+                   data["composite_modes"],
+                   data["video_caps"], data["audio_caps"])
 
 
 class SourceMessage(Message):
