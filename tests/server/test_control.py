@@ -66,3 +66,22 @@ host = 127.0.0.1
         self.assertEqual(received[0].composite_mode, "fullscreen")
         self.assertEqual(received[0].source_a, "a")
         self.assertEqual(received[0].source_b, "b")
+
+    def test_send_to_client(self):
+        disconnect_future = self.loop.create_future()
+        local_port = self.loop.run_until_complete(self.server.local_port())
+        transport, protocol = self.loop.run_until_complete(
+            self.loop.create_connection(
+                lambda: TestClientProtocol(disconnect_future),
+                '127.0.0.1', local_port))
+        self.addCleanup(transport.close)
+
+        self.loop.run_until_complete(self.bus.post(
+            messages.VideoSourceAdded("channel", ("hostname", 42))))
+        self.loop.run_until_complete(self.server.close())
+
+        self.loop.run_until_complete(disconnect_future)
+        self.assertEqual(len(protocol.received), 1)
+        self.assertIsInstance(protocol.received[0], messages.VideoSourceAdded)
+        self.assertEqual(protocol.received[0].channel, "channel")
+        self.assertEqual(protocol.received[0].remote_addr, ("hostname", 42))

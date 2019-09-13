@@ -41,6 +41,9 @@ class ControlServer:
         self._config = config
         self._bus = bus
         self._loop = loop
+        self._closed = False
+
+        bus.add_consumer(messages.Message, self.handle_message)
 
         self._connections = set()
         self._local_port = 0
@@ -53,6 +56,9 @@ class ControlServer:
             self.make_protocol, hostname, port)
 
     async def close(self):
+        if self._closed:
+            return
+        self._closed = True
         if self._server is not None:
             self._server.close()
             await self._server.wait_closed()
@@ -69,6 +75,13 @@ class ControlServer:
         protocol = ControlServerProtocol(self)
         self._connections.add(protocol)
         return protocol
+
+    async def handle_message(self, queue):
+        while True:
+            message = await queue.get()
+            for protocol in self._connections:
+                protocol.send_message(message)
+            queue.task_done()
 
     def send_initial_messages(self, protocol):
         pass
