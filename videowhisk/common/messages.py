@@ -14,6 +14,44 @@ class Message:
         raise NotImplementedError()
 
 
+class MixerConfig(Message):
+    __slots__ = ("control_addr", "clock_addr", "avsource_addr",
+                 "composite_modes", "video_caps", "audio_caps",
+                 "output_uri")
+    message_type = "mixer-config"
+
+    def __init__(self, control_addr, clock_addr, avsource_addr,
+                 composite_modes, video_caps, audio_caps,
+                 output_uri):
+        self.control_addr = control_addr
+        self.clock_addr = clock_addr
+        self.avsource_addr = avsource_addr
+        self.composite_modes = composite_modes
+        self.video_caps = video_caps
+        self.audio_caps = audio_caps
+        self.output_uri = output_uri
+
+    def serialise(self):
+        return dict(
+            type=self.message_type,
+            control_addr=self.control_addr,
+            clock_addr=self.clock_addr,
+            avsource_addr=self.avsource_addr,
+            composite_modes=self.composite_modes,
+            video_caps=self.video_caps,
+            audio_caps=self.audio_caps,
+            output_uri=self.output_uri,
+        )
+
+    @classmethod
+    def deserialise(cls, data):
+        assert data["type"] == cls.message_type
+        return cls(tuple(data["control_addr"]), tuple(data["clock_addr"]),
+                   tuple(data["avsource_addr"]), data["composite_modes"],
+                   data["video_caps"], data["audio_caps"],
+                   data["output_uri"])
+
+
 class SourceMessage(Message):
     __slots__ = ("channel", "remote_addr")
 
@@ -150,6 +188,7 @@ class SetVideoSource(Message):
 
 _message_class_by_type = {
     cls.message_type: cls for cls in [
+        MixerConfig,
         AudioSourceAdded,
         AudioSourceRemoved,
         VideoSourceAdded,
