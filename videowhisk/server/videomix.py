@@ -1,6 +1,6 @@
 from gi.repository import Gst
 
-from . import config, utils
+from . import clock, config, utils
 from ..common import messages
 
 
@@ -26,6 +26,7 @@ class VideoMix:
 
     def make_pipeline(self):
         self._pipeline = Gst.Pipeline("videomix")
+        self._pipeline.use_clock(clock.get_clock())
         self._mixer = Gst.ElementFactory.make("compositor")
         tee = Gst.ElementFactory.make("tee")
         queue = Gst.ElementFactory.make("queue")

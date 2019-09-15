@@ -4,7 +4,7 @@ import socket
 
 from gi.repository import GLib, Gst
 
-from . import utils
+from . import clock, utils
 from ..common import messages
 
 
@@ -94,7 +94,7 @@ class AVSourceConnection:
 
     def make_pipeline(self):
         self._pipeline = Gst.Pipeline(self.name)
-        self._pipeline.use_clock(Gst.SystemClock.obtain())
+        self._pipeline.use_clock(clock.get_clock())
 
         fdsrc = Gst.ElementFactory.make("fdsrc", "fdsrc")
         fdsrc.props.fd = self._sock.fileno()

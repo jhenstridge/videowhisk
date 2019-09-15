@@ -8,7 +8,7 @@ try:
 except ImportError:
     from http_parser.pyparser import HttpParser
 
-from . import utils
+from . import clock, utils
 from ..common import messages
 
 
@@ -116,7 +116,7 @@ class AVMonitorBase:
 
     def make_pipeline(self):
         self._pipeline = Gst.Pipeline("monitor.{}".format(self._channel))
-        self._pipeline.use_clock(Gst.SystemClock.obtain())
+        self._pipeline.use_clock(clock.get_clock())
 
         mux = Gst.ElementFactory.make("matroskamux")
         mux.props.streamable = True
