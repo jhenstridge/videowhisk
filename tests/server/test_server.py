@@ -137,7 +137,8 @@ host = 127.0.0.1
         self.assertIsInstance(mixercfg, messages.MixerConfig)
         self.assertEqual(mixercfg.control_addr,
                          ("myhostname", self.server.control.local_port()))
-        self.assertEqual(mixercfg.clock_addr, ("myhostname", 0))
+        self.assertEqual(mixercfg.clock_addr,
+                         ("myhostname", self.server.clock.local_port()))
         self.assertEqual(mixercfg.avsource_addr,
                          ("myhostname", self.server.sources.local_port()))
         self.assertEqual(mixercfg.avoutput_uri,

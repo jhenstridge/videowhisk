@@ -1,5 +1,5 @@
 
-from . import messagebus, control, avsource, audiomix, videomix, avoutput
+from . import messagebus, clock, control, avsource, audiomix, videomix, avoutput
 from ..common import messages
 
 
@@ -10,6 +10,7 @@ class Server:
         self.loop = loop
         self.config = config
         self.bus = messagebus.MessageBus(loop)
+        self.clock = clock.ClockServer(self.config)
         self.audiomix = audiomix.AudioMix(config, self.bus, loop)
         self.videomix = videomix.VideoMix(config, self.bus, loop)
         self.outputs = avoutput.AVOutputServer(config, self.bus, loop)
@@ -23,6 +24,7 @@ class Server:
         await self.audiomix.close()
         await self.videomix.close()
         await self.sources.close()
+        await self.clock.close()
         await self.bus.close()
 
     def make_initial_messages(self, transport):
@@ -31,8 +33,7 @@ class Server:
         msgs = [
             messages.MixerConfig(
                 control_addr=(local_addr, self.control.local_port()),
-                # Fixme: add GstNet.NetTimeProvider port
-                clock_addr=(local_addr, self.config.clock_addr[1]),
+                clock_addr=(local_addr, self.clock.local_port()),
                 avsource_addr=(local_addr, self.sources.local_port()),
                 avoutput_uri="http://{}:{}".format(
                     local_addr, self.outputs.local_port()),
