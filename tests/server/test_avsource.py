@@ -168,3 +168,38 @@ host = 127.0.0.1
         self.assertEqual(received[0].channel, "c0.audio_0")
         self.assertIsInstance(received[1], messages.VideoSourceRemoved)
         self.assertEqual(received[1].channel, "c0.video_0")
+
+    def test_get_source_messages(self):
+        future = self.loop.create_future()
+        async def consumer(queue):
+            count = 0
+            while True:
+                message = await queue.get()
+                count += 1
+                if count == 3:
+                    future.set_result(None)
+                queue.task_done()
+        self.bus.add_consumer(messages.SourceMessage, consumer)
+
+        sender = self.make_sender("""
+            audiotestsrc freq=440 ! {} ! mux.
+            videotestsrc ! {} ! mux.
+        """.format(self.config.audio_caps.to_string(),
+                   self.config.video_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
+
+        sender = self.make_sender("""
+            videotestsrc ! {} ! mux.
+        """.format(self.config.video_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
+
+        self.loop.run_until_complete(future)
+
+        msgs = self.server.make_source_messages()
+        self.assertEqual(len(msgs), 3)
+        self.assertIsInstance(msgs[0], messages.VideoSourceAdded)
+        self.assertEqual(msgs[0].channel, "c0.video_0")
+        self.assertIsInstance(msgs[1], messages.AudioSourceAdded)
+        self.assertEqual(msgs[1].channel, "c0.audio_0")
+        self.assertIsInstance(msgs[2], messages.VideoSourceAdded)
+        self.assertEqual(msgs[2].channel, "c1.video_0")

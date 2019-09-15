@@ -52,6 +52,19 @@ class AVSourceServer:
     def _connection_closed(self, conn):
         del self._connections[conn.name]
 
+    def make_source_messages(self):
+        """Return a list of {Audio,Video}SourceAdded messages for sources."""
+        msgs = []
+        for name in sorted(self._connections.keys()):
+            conn = self._connections[name]
+            for channel in conn.video_sources:
+                msgs.append(messages.VideoSourceAdded(
+                    channel, conn.address[:2]))
+            for channel in conn.audio_sources:
+                msgs.append(messages.AudioSourceAdded(
+                    channel, conn.address[:2]))
+        return msgs
+
 
 class AVSourceConnection:
     def __init__(self, server, name, sock, address):
@@ -60,7 +73,7 @@ class AVSourceConnection:
         self._closed = False
         self.name = name
         self._sock = sock
-        self._address = address
+        self.address = address
         self.audio_sources = []
         self.video_sources = []
         self.make_pipeline()
@@ -74,10 +87,10 @@ class AVSourceConnection:
         self._server._connection_closed(self)
         for channel in self.audio_sources:
             await self._server._bus.post(messages.AudioSourceRemoved(
-                channel, self._address))
+                channel, self.address[:2]))
         for channel in self.video_sources:
             await self._server._bus.post(messages.VideoSourceRemoved(
-                channel, self._address))
+                channel, self.address[:2]))
 
     def make_pipeline(self):
         self._pipeline = Gst.Pipeline(self.name)
@@ -162,9 +175,9 @@ class AVSourceConnection:
     async def audio_source_added(self, channel):
         self.audio_sources.append(channel)
         await self._server._bus.post(messages.AudioSourceAdded(
-            channel, self._address))
+            channel, self.address[:2]))
 
     async def video_source_added(self, channel):
         self.video_sources.append(channel)
         await self._server._bus.post(messages.VideoSourceAdded(
-            channel, self._address))
+            channel, self.address[:2]))

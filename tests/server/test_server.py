@@ -65,7 +65,6 @@ host = 127.0.0.1
         sender.set_state(Gst.State.PLAYING)
 
         self.loop.run_until_complete(source_future)
-        source_future.result()
 
         # configure mixers
         amix_future = self.loop.create_future()
@@ -112,9 +111,28 @@ host = 127.0.0.1
         self.assertEqual(body[:4], b"\x1A\x45\xDF\xA3")
 
     def test_make_initial_messages(self):
+        source_future = self.loop.create_future()
+        async def source_consumer(queue):
+            count = 0
+            while True:
+                message = await queue.get()
+                count += 1
+                if count == 2:
+                    source_future.set_result(None)
+                queue.task_done()
+        self.server.bus.add_consumer(messages.SourceMessage, source_consumer)
+        # Create input sources
+        sender = self.make_sender("""
+            audiotestsrc freq=440 ! {} ! mux.
+            videotestsrc ! {} ! mux.
+        """.format(self.config.audio_caps.to_string(),
+                   self.config.video_caps.to_string()))
+        sender.set_state(Gst.State.PLAYING)
+        self.loop.run_until_complete(source_future)
+
         transport = asyncio.Transport({"sockname": ("myhostname", 4242)})
         msgs = self.server.make_initial_messages(transport)
-        self.assertEqual(len(msgs), 3)
+        self.assertEqual(len(msgs), 5)
         mixercfg = msgs[0]
         self.assertIsInstance(mixercfg, messages.MixerConfig)
         self.assertEqual(mixercfg.control_addr,
@@ -132,5 +150,7 @@ host = 127.0.0.1
         self.assertEqual(mixercfg.audio_caps,
                          self.config.audio_caps.to_string())
 
-        self.assertIsInstance(msgs[1], messages.VideoMixStatus)
-        self.assertIsInstance(msgs[2], messages.AudioMixStatus)
+        self.assertIsInstance(msgs[1], messages.VideoSourceAdded)
+        self.assertIsInstance(msgs[2], messages.AudioSourceAdded)
+        self.assertIsInstance(msgs[3], messages.VideoMixStatus)
+        self.assertIsInstance(msgs[4], messages.AudioMixStatus)

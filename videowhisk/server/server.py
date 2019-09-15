@@ -40,6 +40,7 @@ class Server:
                 video_caps=self.config.video_caps.to_string(),
                 audio_caps=self.config.audio_caps.to_string())
         ]
+        msgs.extend(self.sources.make_source_messages())
         msgs.append(self.videomix.make_video_mix_status())
         msgs.append(self.audiomix.make_audio_mix_status())
         return msgs
