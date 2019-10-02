@@ -142,12 +142,14 @@ class AVSourceConnection:
         caps = src_pad.query_caps(None)
         if caps.can_intersect(self._server._config.audio_caps):
             channel = "{}.{}".format(self.name, src_pad.get_name())
+            log.info("Creating audio source %s", channel)
             self.make_sink(src_pad, "interaudiosink", channel)
             self._loop.call_soon_threadsafe(
                 self._loop.create_task,
                 self.audio_source_added(channel))
         elif caps.can_intersect(self._server._config.video_caps):
             channel = "{}.{}".format(self.name, src_pad.get_name())
+            log.info("Creating video source %s", channel)
             self.make_sink(src_pad, "intervideosink", channel)
             self._loop.call_soon_threadsafe(
                 self._loop.create_task,

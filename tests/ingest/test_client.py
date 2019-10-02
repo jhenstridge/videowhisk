@@ -6,7 +6,7 @@ from videowhisk.ingest import client
 class ClientTests(unittest.TestCase):
 
     def test_parse_args(self):
-        cli = client.Client()
+        cli = client.Client(None)
 
         args = cli.parse_args(["ingest", "--host", "foo", "--port", "42"])
         self.assertEqual(args.host, "foo")

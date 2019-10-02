@@ -1,7 +1,12 @@
 import argparse
 
+from . import pipeline
+
 
 class Client:
+
+    def __init__(self, loop):
+        self._loop = loop
 
     def parse_args(self, argv):
         parser = argparse.ArgumentParser()
@@ -20,3 +25,14 @@ class Client:
                             action="append", default=[], metavar="WAVE",
                             help="An audio test source")
         return parser.parse_args(argv[1:])
+
+    async def run(self, args):
+        ingest = pipeline.IngestPipeline(self._loop)
+        try:
+            await ingest.run((args.host, args.port),
+                             video=args.video,
+                             video_test=args.video_test,
+                             audio=args.audio,
+                             audio_test=args.audio_test)
+        except pipeline.PipelineError:
+            pass

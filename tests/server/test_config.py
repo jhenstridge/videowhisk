@@ -22,10 +22,10 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.video_caps.get_size(), 1)
         struct = cfg.video_caps.get_structure(0)
         self.assertEqual(struct.get_name(), "video/x-raw")
-        self.assertEqual(struct.get_value("format"), "I420")
+        self.assertEqual(struct.get_value("format"), "YUY2")
         self.assertEqual(struct.get_value("width"), 1920)
         self.assertEqual(struct.get_value("height"), 1080)
-        self.assertEqual(struct.get_value("framerate"), Gst.Fraction(25, 1))
+        self.assertEqual(struct.get_value("framerate"), Gst.Fraction(30, 1))
         self.assertEqual(struct.get_value("pixel-aspect-ratio"),
                          Gst.Fraction(1, 1))
         self.assertEqual(struct.get_value("interlace-mode"), "progressive")
