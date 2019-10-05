@@ -45,6 +45,50 @@ class ControlClient(protocol.ControlProtocol):
                 print("Active video B")
 
 
+def choose_video_caps(supported_caps, target_caps):
+    target_struct = target_caps.get_structure(0)
+    assert target_struct.get_name() == "video/x-raw"
+    raw_struct = target_struct.copy()
+    jpeg_struct = raw_struct.copy()
+    jpeg_struct.set_name("image/jpeg")
+
+    # Build up a set of caps we'd accept
+    caps = Gst.Caps()
+    caps.append_structure(raw_struct.copy())
+    raw_struct.remove_field("format")
+    caps.append_structure(raw_struct.copy())
+    caps.append_structure(jpeg_struct.copy())
+
+    # Without framerate
+    raw_struct.remove_field("framerate")
+    jpeg_struct.remove_field("framerate")
+    caps.append_structure(raw_struct.copy())
+    caps.append_structure(jpeg_struct.copy())
+
+    # Without dimensions, but with framerate
+    raw_struct.remove_field("width")
+    raw_struct.remove_field("height")
+    raw_struct.remove_field("pixel-aspect-ratio")
+    raw_struct.set_value("framerate", target_struct.get_value("framerate"))
+    jpeg_struct.remove_field("width")
+    jpeg_struct.remove_field("height")
+    jpeg_struct.remove_field("pixel-aspect-ratio")
+    jpeg_struct.set_value("framerate", target_struct.get_value("framerate"))
+    caps.append_structure(raw_struct.copy())
+    caps.append_structure(jpeg_struct.copy())
+
+    # Without dimensions or framerate
+    raw_struct.remove_field("framerate")
+    jpeg_struct.remove_field("framerate")
+    caps.append_structure(raw_struct.copy())
+    caps.append_structure(jpeg_struct.copy())
+
+    caps = caps.intersect(supported_caps)
+    assert not caps.is_empty()
+
+    return caps.fixate()
+
+
 class IngestPipeline:
 
     def __init__(self, loop):
@@ -97,8 +141,19 @@ class IngestPipeline:
         for videosrc in video:
             src = Gst.ElementFactory.make("v4l2src")
             src.props.device = videosrc
-            self._pipeline.add(src)
-            src.link_filtered(mux, video_caps)
+            src.set_state(Gst.State.READY)
+            supported_caps = src.get_static_pad("src").query_caps()
+            src.set_state(Gst.State.NULL)
+            best_caps = choose_video_caps(supported_caps, video_caps)
+
+            convert = Gst.ElementFactory.make("videoconvert")
+            scale = Gst.ElementFactory.make("videoscale")
+            rate = Gst.ElementFactory.make("videorate")
+            self._pipeline.add(src, convert, scale, rate)
+            src.link_filtered(convert, best_caps)
+            convert.link(scale)
+            scale.link(rate)
+            rate.link_filtered(mux, video_caps)
 
         for videosrc in video_test:
             src = Gst.ElementFactory.make("videotestsrc")
