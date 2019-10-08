@@ -23,4 +23,12 @@ loop.add_signal_handler(signal.SIGINT, loop.stop)
 
 cli = client.Client(loop)
 args = cli.parse_args(sys.argv)
-loop.run_until_complete(cli.run(args))
+
+task = loop.create_task(cli.run(args))
+loop.run_forever()
+
+task.cancel()
+try:
+    loop.run_until_complete(task)
+except asyncio.CancelledError:
+    pass
