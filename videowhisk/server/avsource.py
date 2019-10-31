@@ -5,7 +5,7 @@ import socket
 from gi.repository import GLib, Gst
 
 from . import clock, utils
-from ..common import messages
+from ..common import base_pipeline, messages
 
 
 log = logging.getLogger(__name__)
@@ -66,8 +66,9 @@ class AVSourceServer:
         return msgs
 
 
-class AVSourceConnection:
+class AVSourceConnection(base_pipeline.BasePipeline):
     def __init__(self, server, name, sock, address):
+        super().__init__(name)
         self._server = server
         self._loop = server._loop
         self._closed = False
@@ -92,10 +93,11 @@ class AVSourceConnection:
             await self._server._bus.post(messages.VideoSourceRemoved(
                 channel, self.address[:2]))
 
-    def make_pipeline(self):
-        self._pipeline = Gst.Pipeline(self.name)
-        self._pipeline.use_clock(clock.get_clock())
+    def set_clock(self):
+        self.pipeline.use_clock(clock.get_clock())
 
+    def make_pipeline(self):
+        super().make_pipeline()
         fdsrc = Gst.ElementFactory.make("fdsrc", "fdsrc")
         fdsrc.props.fd = self._sock.fileno()
         fdsrc.props.blocksize = 1048576
@@ -104,39 +106,28 @@ class AVSourceConnection:
         self._demux = Gst.ElementFactory.make("matroskademux", "demux")
         self._demux_signal_id = self._demux.connect('pad-added', self.on_demux_pad_added)
 
-        self._pipeline.add(fdsrc, queue, self._demux)
+        self.pipeline.add(fdsrc, queue, self._demux)
         fdsrc.link(queue)
         queue.link(self._demux)
 
-        bus = self._pipeline.get_bus()
-        bus.add_watch(GLib.PRIORITY_DEFAULT, self.on_bus_message)
-
     def destroy_pipeline(self):
-        self._pipeline.set_state(Gst.State.NULL)
         self._demux.disconnect(self._demux_signal_id)
         self._demux = None
-        bus = self._pipeline.get_bus()
-        bus.remove_watch()
-        self._pipeline = None
+        super().destroy_pipeline()
 
     def start(self):
-        self._pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
 
-    def on_bus_message(self, bus, message):
-        if message.type == Gst.MessageType.EOS:
-            self._loop.call_soon_threadsafe(
-                self._loop.create_task, self.close())
-        elif message.type == Gst.MessageType.ERROR:
-            (error, debug) = message.parse_error()
-            log.error("Error from %s: %s", message.src.get_name(), error.message)
-            if debug:
-                log.error("Debug info: %s", debug)
-            self._loop.call_soon_threadsafe(
-                self._loop.create_task, self.close())
-        else:
-            # ignore other messages
-            pass
-        return True
+    def on_bus_eos(self):
+        self._loop.call_soon_threadsafe(
+            self._loop.create_task, self.close())
+
+    def on_bus_error(self, error, debug):
+        log.error("Error from %s: %s", message.src.get_name(), error.message)
+        if debug:
+            log.error("Debug info: %s", debug)
+        self._loop.call_soon_threadsafe(
+            self._loop.create_task, self.close())
 
     def on_demux_pad_added(self, demux, src_pad):
         caps = src_pad.query_caps(None)
@@ -161,13 +152,13 @@ class AVSourceConnection:
 
     def make_sink(self, src_pad, sinktype, channel):
         tee = Gst.ElementFactory.make("tee")
-        self._pipeline.add(tee)
+        self.pipeline.add(tee)
         src_pad.link(tee.get_static_pad("sink"))
         for output in ["monitor", "mix"]:
             queue = Gst.ElementFactory.make("queue")
             sink = Gst.ElementFactory.make(sinktype)
             sink.props.channel = "{}.{}".format(channel, output)
-            self._pipeline.add(queue, sink)
+            self.pipeline.add(queue, sink)
             tee.link(queue)
             queue.link(sink)
             queue.sync_state_with_parent()

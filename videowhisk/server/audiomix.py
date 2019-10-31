@@ -1,10 +1,11 @@
 from gi.repository import Gst
 
 from . import clock, utils
-from ..common import messages
+from ..common import base_pipeline, messages
 
-class AudioMix:
+class AudioMix(base_pipeline.BasePipeline):
     def __init__(self, config, bus, loop):
+        super().__init__("audiomix")
         self._closed = False
         self._loop = loop
         self._config = config
@@ -21,34 +22,35 @@ class AudioMix:
         self._closed = True
         self.destroy_pipeline()
 
+    def set_clock(self):
+        self.pipeline.use_clock(clock.get_clock())
+
     def make_pipeline(self):
-        self._pipeline = Gst.Pipeline("audiomix")
-        self._pipeline.use_clock(clock.get_clock())
+        super().make_pipeline()
         self._mixer = Gst.ElementFactory.make("audiomixer")
         tee = Gst.ElementFactory.make("tee")
         queue = Gst.ElementFactory.make("queue")
         sink = Gst.ElementFactory.make("interaudiosink")
         sink.props.channel = "audiomix.output"
-        self._pipeline.add(self._mixer, tee, queue, sink)
+        self.pipeline.add(self._mixer, tee, queue, sink)
         self._mixer.link_filtered(tee, self._config.audio_caps)
         tee.link(queue)
         queue.link(sink)
-        self._pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
 
     def destroy_pipeline(self):
-        self._pipeline.set_state(Gst.State.NULL)
         # Don't bother closing each source: they should be cleaned up
         # when the pipeline is unrefed.
         self._sources.clear()
         self._mixer = None
-        self._pipeline = None
+        super().destroy_pipeline()
 
     async def handle_message(self, queue):
         while True:
             message = await queue.get()
             if isinstance(message, messages.AudioSourceAdded):
                 source = AudioMixSource(
-                    self._config, self._pipeline, message.channel,
+                    self._config, self.pipeline, message.channel,
                     self._mixer, self._loop)
                 self._sources[message.channel] = source
             elif isinstance(message, messages.AudioSourceRemoved):

@@ -9,7 +9,7 @@ except ImportError:
     from http_parser.pyparser import HttpParser
 
 from . import clock, utils
-from ..common import messages
+from ..common import base_pipeline, messages
 
 
 log = logging.getLogger(__name__)
@@ -91,11 +91,12 @@ class AVOutputServer:
             await conn.close()
 
 
-class AVMonitorBase:
+class AVMonitorBase(base_pipeline.BasePipeline):
 
     has_video = False
 
     def __init__(self, channel, server):
+        super().__init__("monitor.{}".format(channel))
         self._closed = False
         self._channel = channel
         self._server = server
@@ -114,10 +115,11 @@ class AVMonitorBase:
     def make_source(self, mux):
         raise NotImplementedError()
 
-    def make_pipeline(self):
-        self._pipeline = Gst.Pipeline("monitor.{}".format(self._channel))
-        self._pipeline.use_clock(clock.get_clock())
+    def set_clock(self):
+        self.pipeline.use_clock(clock.get_clock())
 
+    def make_pipeline(self):
+        super().make_pipeline()
         mux = Gst.ElementFactory.make("matroskamux")
         mux.props.streamable = True
         mux.props.writing_app = "videowhisk"
@@ -126,7 +128,7 @@ class AVMonitorBase:
         self._sink.props.buffers_max = 500
         self._sink.props.sync_method = 1 # "next-keyframe"
 
-        self._pipeline.add(mux, self._sink)
+        self.pipeline.add(mux, self._sink)
         self.make_source(mux)
         mux.link(self._sink)
 
@@ -136,14 +138,13 @@ class AVMonitorBase:
             "client-fd-removed", self.on_client_fd_removed)
 
     def destroy_pipeline(self):
-        self._pipeline.set_state(Gst.State.NULL)
         self._sink.disconnect(self._client_removed_id)
         self._sink.disconnect(self._client_fd_removed_id)
         self._sink = None
-        self._pipeline = None
+        super().destroy_pipeline()
 
     def start(self):
-        self._pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
 
     def add_fd(self, fileno):
         self._filenos.add(fileno)
@@ -159,13 +160,14 @@ class AVMonitorBase:
         self._loop.call_soon_threadsafe(
             self._loop.create_task, self._server._monitor_remove_fd(fileno))
 
+
 class AudioMonitor(AVMonitorBase):
 
     def make_source(self, mux):
         src = Gst.ElementFactory.make("interaudiosrc")
         src.props.channel = "{}.{}".format(self._channel, "monitor")
         queue = Gst.ElementFactory.make("queue", "srcqueue")
-        self._pipeline.add(src, queue)
+        self.pipeline.add(src, queue)
         src.link_filtered(queue, self._server._config.audio_caps)
         queue.link(mux)
 
@@ -178,7 +180,7 @@ class VideoMonitor(AVMonitorBase):
         src = Gst.ElementFactory.make("intervideosrc")
         src.props.channel = "{}.{}".format(self._channel, "monitor")
         queue = Gst.ElementFactory.make("queue", "srcqueue")
-        self._pipeline.add(src, queue)
+        self.pipeline.add(src, queue)
         src.link_filtered(queue, self._server._config.video_caps)
         queue.link(mux)
 
@@ -191,14 +193,14 @@ class OutputMonitor(AVMonitorBase):
         src = Gst.ElementFactory.make("intervideosrc")
         src.props.channel = "videomix.output"
         queue = Gst.ElementFactory.make("queue", "vsrcqueue")
-        self._pipeline.add(src, queue)
+        self.pipeline.add(src, queue)
         src.link_filtered(queue, self._server._config.video_caps)
         queue.link(mux)
 
         src = Gst.ElementFactory.make("interaudiosrc")
         src.props.channel = "audiomix.output"
         queue = Gst.ElementFactory.make("queue", "asrcqueue")
-        self._pipeline.add(src, queue)
+        self.pipeline.add(src, queue)
         src.link_filtered(queue, self._server._config.audio_caps)
         queue.link(mux)
 
